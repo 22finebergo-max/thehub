@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script src="../../js/sound-guard.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#dff0d6">
+<title>Like a Christian</title>
+<style>
+  :root{
+    --paper:#dff0d6; --ink:#4e7a52; --ink-soft:#7ba37f;
+    --limb:#a7dcab; --limb-line:#5f9a66;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--paper);
+    font-family:"Comic Sans MS","Chalkboard SE","Segoe Print","Bradley Hand",system-ui,sans-serif;
+    color:var(--ink);-webkit-user-select:none;user-select:none;touch-action:none}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block}
+
+  .panel{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:30;
+    background:rgba(223,240,214,.86);backdrop-filter:blur(2px);padding:22px}
+  .panel.on{display:flex}
+  .sheet{width:100%;max-width:330px;background:#f4fbf0;border:3px solid var(--ink);
+    border-radius:26px;padding:22px 20px;text-align:center;box-shadow:0 10px 0 rgba(78,122,82,.18)}
+  .sheet h1{margin:0 0 4px;font-size:27px;letter-spacing:.5px}
+  .sheet h2{margin:0 0 6px;font-size:24px}
+  .sheet p{margin:0 0 16px;font-size:14px;line-height:1.5;color:var(--ink-soft)}
+  .btn{display:block;width:100%;margin:9px 0 0;padding:13px 16px;font:inherit;font-size:17px;cursor:pointer;
+    border:3px solid var(--ink);border-radius:18px;background:#b6e3ba;color:#2f5436;
+    box-shadow:0 5px 0 rgba(78,122,82,.35)}
+  .btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(78,122,82,.35)}
+  .btn.ghost{background:#f4fbf0;color:var(--ink);box-shadow:0 5px 0 rgba(78,122,82,.18)}
+  .row{display:flex;gap:10px;margin:14px 0 2px}
+  .cell{flex:1;border:2px dashed var(--ink-soft);border-radius:14px;padding:9px 4px}
+  .cell b{display:block;font-size:22px;color:var(--ink)}
+  .cell span{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+  .tag{display:inline-block;background:#ffe9a8;border:2px solid #d8ab3a;color:#6d5213;
+    border-radius:999px;padding:3px 13px;font-size:12px;margin-bottom:9px}
+  .songline{font-size:13px;color:var(--ink-soft);margin:14px 0 0}
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    border:2px solid var(--ink-soft);border-radius:16px;padding:10px 14px;margin-top:10px;font-size:15px}
+  .sw{border:0;background:#b6e3ba;color:#2f5436;font:inherit;font-size:14px;padding:6px 14px;
+    border-radius:999px;cursor:pointer;border:2px solid var(--ink)}
+  .sw.off{background:#f0f0ee;color:#9a9a96;border-color:#c8c8c4}
+  #partyBar{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:9;background:rgba(255,255,255,.9);border:2px solid var(--ink);border-radius:14px;padding:5px 12px;font-weight:700;font-size:14px;white-space:nowrap}
+  #partyBar[hidden]{display:none}
+  /* ---- hub skin: fun, chunky look (game logic unchanged) ---- */
+  html,body{background:radial-gradient(120% 80% at 50% 0%,#5a31b8 0%,#2a1570 42%,#120a33 100%)!important;color:#fff}
+  .panel{background:rgba(18,10,51,.8)!important;backdrop-filter:blur(3px)}
+  .sheet{background:linear-gradient(#3d2494,#26126c)!important;border:3px solid #ffd23f!important;border-radius:26px!important;box-shadow:0 20px 50px rgba(0,0,0,.6);color:#fff}
+  .sheet h1,.sheet h2{color:#ffd23f;text-shadow:0 3px 0 rgba(0,0,0,.35)}
+  .sheet p{color:#e9e2ff!important}
+  .btn{background:linear-gradient(#62e890,#1fb85a)!important;border:0!important;color:#fff!important;font-weight:900!important;border-radius:18px!important;box-shadow:0 5px 0 #0e7a3a,0 11px 18px rgba(0,0,0,.35)!important;text-shadow:0 2px 0 rgba(0,0,0,.25)}
+  .btn:active{transform:translateY(4px)!important;box-shadow:0 1px 0 #0e7a3a,0 4px 10px rgba(0,0,0,.35)!important}
+  .btn.ghost{background:rgba(255,255,255,.1)!important;border:2px solid rgba(255,255,255,.3)!important;box-shadow:none!important}
+  .cell{border-color:rgba(255,255,255,.4)!important;background:rgba(255,255,255,.08)}
+  .cell b{color:#ffd23f!important}
+  .cell span{color:#e9e2ff!important}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<!-- title -->
+<div class="panel on" id="pStart">
+  <div class="sheet">
+    <h1>Like a Christian</h1>
+    <p>Bars drop in time with the song. Slide Christian under each one and his neck grows and grows.<br>Three misses and the tune stops.</p>
+    <button class="btn" id="bPlay">Play</button>
+    <button class="btn ghost" id="bParty">Party VS · code</button>
+    <button class="btn ghost" id="bSong">Song</button>
+    <button class="btn ghost" id="bPerson">Person</button>
+    <button class="btn ghost" id="bDiff">Difficulty</button>
+    <p class="songline" id="bestLine"></p>
+  </div>
+</div>
+
+<!-- settings -->
+<div class="panel" id="pSet">
+  <div class="sheet">
+    <h2>Settings</h2>
+    <div class="toggle"><span>Music &amp; sound</span><button class="sw" id="swSound">On</button></div>
+    <button class="btn" id="bResume">Resume</button>
+    <button class="btn ghost" id="bRestart">Start again</button>
+    <button class="btn ghost" id="bHub">Back to the hub</button>
+  </div>
+</div>
+
+<!-- game over -->
+<div class="panel" id="pOver">
+  <div class="sheet">
+    <span class="tag" id="ovTag">Out of lives</span>
+    <h2 id="ovTitle">Missed it!</h2>
+    <p id="ovSub">The song stops when the third bar goes by.</p>
+    <div class="row">
+      <div class="cell"><b id="ovScore">0</b><span>Score</span></div>
+      <div class="cell"><b id="ovBest">0</b><span>Best</span></div>
+    </div>
+    <div class="row">
+      <div class="cell"><b id="ovPerf">0</b><span>Perfects</span></div>
+      <div class="cell"><b id="ovNeck">0 m</b><span>Tallest neck</span></div>
+    </div>
+    <button class="btn" id="bAgain">Play again</button>
+    <button class="btn ghost" id="bTitle">Back to the title</button>
+  </div>
+</div>
+
+<div id="partyBar" hidden></div>
+<img id="av1" alt="" style="display:none">
+
+<script src="../../js/hub-online.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* people you can play as; the photo is replaced with a data URI in the single-file build */
+  var PEOPLE = [
+    { name: 'Christian', src: 'head.png' },
+    { name: 'Charlie',   src: '../paccymatt/charlie.png', neck: ['rgb(246,246,246)', 'rgb(176,176,176)'] },
+    { name: 'Amaan',     src: '../snariyan/amaan.png' },
+    { name: 'Haider',    src: '../snariyan/haider.png' }
+  ];
+
+  /* ---------------- canvas ---------------- */
+  var cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  var W = 0, H = 0, DPR = 1;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+
+  var headImg = document.getElementById('av1'), headReady = false;
+  var SKIN = 'rgb(168,124,101)', SKIN_DARK = 'rgb(101,74,60)';
+  headImg.onload = function () {
+    headReady = true;
+    /* pull his actual skin tone out of the photo so the neck matches him */
+    try {
+      var oc = document.createElement('canvas'), ow = 64;
+      oc.width = oc.height = ow;
+      var o = oc.getContext('2d');
+      o.drawImage(headImg, 0, 0, ow, ow);
+      var pts = [[0.50, 0.22], [0.58, 0.22], [0.46, 0.24], [0.54, 0.26], [0.58, 0.26], [0.50, 0.30], [0.62, 0.24]];
+      var r = 0, g = 0, b = 0, hits = 0;
+      for (var i = 0; i < pts.length; i++) {
+        var d = o.getImageData(Math.round(pts[i][0] * ow), Math.round(pts[i][1] * ow), 1, 1).data;
+        /* keep skin-like samples only: warm and not too dark (skips hair, tie, backdrop) */
+        if (d[3] > 200 && d[0] > 110 && d[0] > d[2] + 22 && d[0] >= d[1]) { r += d[0]; g += d[1]; b += d[2]; hits++; }
+      }
+      if (hits) {
+        r = Math.round(r / hits); g = Math.round(g / hits); b = Math.round(b / hits);
+        SKIN = 'rgb(' + r + ',' + g + ',' + b + ')';
+        SKIN_DARK = 'rgb(' + Math.round(r * 0.6) + ',' + Math.round(g * 0.6) + ',' + Math.round(b * 0.6) + ')';
+      }
+    } catch (e) { /* keep the fallback */ }
+    /* a person can have a fixed neck colour, e.g. Charlie's is white */
+    if (PEOPLE[personI].neck) { SKIN = PEOPLE[personI].neck[0]; SKIN_DARK = PEOPLE[personI].neck[1]; }
+  };
+
+  /* ---------------- storage ---------------- */
+  function ls(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  var best = Number(ls('christianBest', 0)) || 0;
+  var soundOn = ls('christianSound', '1') !== '0';
+  var personI = Number(ls('christianPerson', '0')) || 0;
+  if (!PEOPLE[personI]) personI = 0;
+  function loadPerson(i) {
+    personI = i; headReady = false;
+    headImg.src = PEOPLE[i].src;
+    save('christianPerson', String(i));
+  }
+  loadPerson(personI);
+
+  /* ================= MUSIC =================
+     "Sunny Steps" - an original, cheerful loop written for this game.
+     It plays at normal speed, and every time it reaches the end it comes
+     back round faster: 1.0x, then 1.2x, 1.4x, 1.6x ... just like Like a Dino.
+     The whole game runs on this song's beat clock, so the bars fall in time
+     with it and speed up with it too. */
+  var BPM = 150;
+  var RATE_STEP = 0.2, RATE_MAX = 2.6;
+  /* [semitones from C, beats]  (null = rest) - three original songs */
+  var SONGS = [
+    { name: 'Sunny Steps', bpm: 150,
+      melody: [[64,1],[67,1],[69,2],[67,1],[64,1],[62,2],[64,1],[62,1],
+               [60,1],[62,1],[64,1],[67,1],[69,2],[67,2],
+               [65,1],[64,1],[62,1],[60,1],[62,2],[64,2],
+               [67,1],[69,1],[71,1],[72,1],[71,1],[69,1],[67,2],
+               [64,2],[null,1],[62,1],[60,4],
+               [69,1],[71,1],[72,2],[71,1],[69,1],[67,2],[65,1],[64,1],
+               [65,1],[67,1],[69,2],[67,2],[64,1],[62,1],[60,2],[62,2],
+               [64,1],[65,1],[67,1],[69,1],[72,2],[71,2],[69,1],[67,1],
+               [64,2],[62,2],[60,4]],
+      bass: [48,45,43,48], lead: 'triangle', leadVol: 0.2, bassWave: 'sine', gate: 0.92,
+      tile: { fill: '#bfe6c0', stroke: '#5f9a66', w: 15, r: 3 } },
+    { name: 'Night Walk', bpm: 132,
+      melody: [[57,1],[60,1],[64,2],[62,1],[60,1],[57,2],[59,1],[60,1],
+               [62,2],[64,1],[62,1],[60,2],[57,2],[null,1],
+               [56,1],[57,2],[59,1],[57,2],
+               [64,1],[65,1],[64,2],[62,1],[60,1],[59,2],[57,1],[59,1],
+               [60,2],[59,1],[57,1],[56,2],[57,2],[null,1],
+               [59,1],[60,1],[62,2],[60,1],[59,1],[57,2],[57,4]],
+      bass: [45,41,43,40], lead: 'square', leadVol: 0.07, bassWave: 'triangle', gate: 0.98,
+      tile: { fill: '#a9cdea', stroke: '#3f6f9a', w: 13, r: 7 } },
+    { name: 'Brass Parade', bpm: 170,
+      melody: [[60,1],[60,1],[67,1],[67,1],[69,1],[69,1],[67,2],
+               [65,1],[65,1],[64,1],[64,1],[62,1],[62,1],[60,2],
+               [null,1],[67,1],[65,1],[64,1],[62,1],[60,2],[60,2],
+               [67,1],[67,1],[72,1],[72,1],[71,1],[71,1],[69,2],
+               [67,1],[65,1],[64,1],[62,1],[64,2],[65,1],[64,1],[62,1],[60,4]],
+      bass: [48,43,48,43], lead: 'sawtooth', leadVol: 0.1, bassWave: 'triangle', gate: 0.5,
+      tile: { fill: '#f2c27a', stroke: '#a8741f', w: 22, r: 0 } }
+  ];
+  var songI = Number(ls('christianSong', '0')) || 0;
+  if (!SONGS[songI]) songI = 0;
+  var DIFF_LIST = [
+    { name: 'Easy',   lives: 4, catch: 46, perfect: 14, bpm: 0.85, travel: 4.6 },
+    { name: 'Medium', lives: 3, catch: 36, perfect: 10, bpm: 1.00, travel: 4.0 },
+    { name: 'Hard',   lives: 3, catch: 26, perfect: 6,  bpm: 1.12, travel: 3.4 }
+  ];
+  var diffI = Number(ls('christianDiff', '1')) || 1;
+  if (!DIFF_LIST[diffI]) diffI = 1;
+  var MELODY = [], BASS = [], TILE = null;
+  function setSong(i) {
+    songI = i;
+    MELODY = SONGS[i].melody; BASS = SONGS[i].bass;
+    BPM = SONGS[i].bpm * DIFF_LIST[diffI].bpm; TILE = SONGS[i].tile;
+    songBeats = MELODY.reduce(function (s, n) { return s + n[1]; }, 0);
+    save('christianSong', String(i));
+  }
+  setSong(songI);
+
+  var actx = null, master = null;
+  function audio() {
+    if (actx && actx.state === 'closed') actx = null;
+    if (!actx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      actx = new AC();
+      master = actx.createGain();
+      master.gain.value = soundOn ? 0.9 : 0;
+      master.connect(actx.destination);
+    }
+    if (actx.state === 'suspended' || actx.state === 'interrupted') actx.resume();
+    return actx;
+  }
+  function hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
+  function tone(t, midi, dur, type, vol, glide) {
+    var a = audio(); if (!a || !soundOn) return;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type || 'triangle';
+    o.frequency.setValueAtTime(hz(midi), t);
+    if (glide) o.frequency.exponentialRampToValueAtTime(hz(midi + glide), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.22, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function noise(t, dur, vol) {
+    var a = audio(); if (!a || !soundOn) return;
+    var n = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    var s = a.createBufferSource(); s.buffer = buf;
+    var g = a.createGain(); g.gain.value = vol || 0.13;
+    var f = a.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 900;
+    s.connect(f); f.connect(g); g.connect(master); s.start(t);
+  }
+
+  /* one-shots */
+  function sfxCatch(step) { var a = audio(); if (!a) return; tone(a.currentTime, 72 + (step % 6) * 2, 0.1, 'triangle', 0.17); }
+  function sfxPerfect() { var a = audio(); if (!a) return; var t = a.currentTime;
+    tone(t, 84, 0.09, 'sine', 0.2); tone(t + 0.07, 88, 0.09, 'sine', 0.18); tone(t + 0.14, 91, 0.14, 'sine', 0.16); }
+  function sfxMiss() { var a = audio(); if (!a) return; var t = a.currentTime;
+    tone(t, 57, 0.3, 'sawtooth', 0.14, -7); noise(t, 0.18, 0.1); }
+  function sfxOver() { var a = audio(); if (!a) return; var t = a.currentTime;
+    [72, 69, 65, 60].forEach(function (m, i) { tone(t + i * 0.13, m, 0.3, 'triangle', 0.2); }); }
+
+  /* ---- beat clock + scheduler ---- */
+  var beats = 0;            /* musical position, in beats */
+  var rate = 1;             /* playback speed of the song */
+  var loops = 0;            /* how many times the song has come round */
+  var noteI = 0, noteBeat = 0, bassBeat = 0, bassI = 0;
+  var songBeats = MELODY.reduce(function (s, n) { return s + n[1]; }, 0);
+  function beatDur() { return 60 / (BPM * rate); }
+
+  function resetSong() { beats = 0; rate = 1; loops = 0; noteI = 0; noteBeat = 0; bassBeat = 0; bassI = 0; }
+
+
+
+  function scheduleMusic() {
+    var a = soundOn ? audio() : null;
+    var look = 2;                                   /* schedule 2 beats ahead */
+    while (noteBeat < beats + look) {
+      var n = MELODY[noteI];
+      if (a && n[0] !== null) {
+        var when = a.currentTime + Math.max(0, (noteBeat - beats)) * beatDur();
+        var sg = SONGS[songI];
+        tone(when, n[0], Math.min(n[1] * beatDur() * sg.gate, 0.75), sg.lead, sg.leadVol);
+        tone(when, n[0] + 12, Math.min(n[1] * beatDur() * 0.5, 0.3), 'sine', 0.05);
+      }
+      noteBeat += n[1];
+      noteI++;
+      if (noteI >= MELODY.length) {                 /* end of the song -> faster */
+        noteI = 0;
+        loops++;
+        rate = Math.min(RATE_MAX, 1 + loops * RATE_STEP);
+        speedFlash = 1;
+      }
+    }
+    while (bassBeat < beats + look) {
+      if (a) {
+        var w2 = a.currentTime + Math.max(0, (bassBeat - beats)) * beatDur();
+        tone(w2, BASS[bassI % BASS.length], beatDur() * 1.6, SONGS[songI].bassWave, 0.16);
+        noise(w2 + beatDur() * 2, 0.05, 0.05);
+      }
+      bassBeat += 4; bassI++;
+    }
+  }
+
+  /* ================= GAME ================= */
+  var TRAVEL;                     /* beats a bar spends falling (set by difficulty) */
+  var GAP = 2;                    /* beats between bars */
+  var BAR_W = 15;
+  var ZOOM = 0.78;                /* camera pulled back: more of the scene visible, harder to read */
+  var NECK_W = 26;
+  var CATCH_SLOP, PERFECT_SLOP;   /* set by difficulty */
+  var LIVES;                      /* set by difficulty */
+  function applyDiff() {
+    var d = DIFF_LIST[diffI];
+    LIVES = d.lives; CATCH_SLOP = d.catch; PERFECT_SLOP = d.perfect; TRAVEL = d.travel;
+  }
+  applyDiff();
+
+  var state = 'title';
+  var score = 0, perfects = 0, lives = LIVES, combo = 0;
+  var neck = [];                  /* caught bars, bottom-up: {len} */
+  var neckLen = 0, neckDraw = 0;  /* target / animated neck length in px */
+  var bars = [];                  /* falling bars */
+  var nextBeat = 0;
+  var head = { x: 0, tx: 0 };
+  var headY = 0;
+  var flash = 0, flashTxt = '', sparks = [], shake = 0, speedFlash = 0;
+  var fallers = [];               /* missed bars tumbling away */
+  var last = 0, bestNeck = 0;
+
+  function layout() { headY = Math.round(H * 0.7); }
+
+  function startGame() {
+    var pn = partyNext; partyNext = null;
+    if (pn) { setSong(0); diffI = 1; applyDiff(); }
+    resize(); layout();
+    state = 'play';
+    score = 0; perfects = 0; lives = LIVES; combo = 0;
+    partyStart(pn);
+    neck = []; neckLen = 0; neckDraw = 0; bars = []; fallers = []; sparks = [];
+    head.x = head.tx = W / 2;
+    resetSong();
+    nextBeat = 4;                 /* one bar of lead-in */
+    flash = 0; shake = 0; speedFlash = 0;
+    save('christianPlays', Number(ls('christianPlays', 0)) + 1);
+    hide('pStart'); hide('pOver'); hide('pSet');
+    audio();
+    last = performance.now();
+  }
+
+  /* Party VS: both players share a seed so the bars match. Solo uses Math.random. */
+  var partyRoom = null, partySeed = null, partyNext = null, partyOpp = { s: 0, l: 0, p: 0, done: false };
+  function rnd() {
+    if (partySeed === null) return Math.random();
+    partySeed = (Math.imul(partySeed, 1664525) + 1013904223) >>> 0;
+    return partySeed / 4294967296;
+  }
+  function spawn(hitBeat) {
+    var m = 46;
+    bars.push({
+      x: m + rnd() * Math.max(1, (W - m * 2)),
+      hit: hitBeat,
+      len: 34 + Math.round(rnd() * 46)
+    });
+  }
+
+  function partyStart(pn) {
+    partyRoom = pn ? pn.room : null;
+    partySeed = pn ? ((pn.seed >>> 0) || 1) : null;
+    partyOpp = { s: 0, l: LIVES, p: 0, done: false };
+    partyPaint();
+  }
+  function partySend() { if (partyRoom) partyRoom.send('score', { s: score, l: lives, p: perfects }); }
+  function partyPaint() {
+    var bar = document.getElementById('partyBar');
+    if (!partyRoom) { bar.hidden = true; return; }
+    var them = partyRoom.players.filter(function (p) { return p.id !== partyRoom.me; })[0];
+    var name = (them && them.name) || 'Partner';
+    bar.hidden = false;
+    bar.textContent = 'You ' + score + ' ' + '\u2665'.repeat(Math.max(0, lives)) + '   ' + name + ' ' + partyOpp.s + ' ' + '\u2665'.repeat(Math.max(0, partyOpp.l));
+  }
+  function partyResult() {
+    if (!partyRoom) return;
+    var tag = document.getElementById('ovTag'), title = document.getElementById('ovTitle'), sub = document.getElementById('ovSub');
+    tag.textContent = 'Party VS';
+    if (!partyOpp.done) {
+      title.textContent = score > 0 ? 'Nice!' : 'Missed it!';
+      sub.textContent = 'Waiting for your partner to finish\u2026';
+      return;
+    }
+    title.textContent = score > partyOpp.s ? 'You win!' : score === partyOpp.s ? "It's a tie!" : 'They win this one';
+    sub.textContent = 'You ' + score + ' \u00b7 Them ' + partyOpp.s;
+  }
+  function partyOnStart(room, data) {
+    if (!room.__christian) {
+      room.__christian = true;
+      room.on('score', function (d) { partyOpp.s = d.s; partyOpp.l = d.l; partyOpp.p = d.p; partyPaint(); });
+      room.on('done', function (d) { partyOpp.s = d.s; partyOpp.p = d.p; partyOpp.done = true; partyPaint(); if (state === 'over') partyResult(); });
+      room.on('rematch', function () { if (room.isHost && state === 'over') room.startMatch(); });
+    }
+    partyNext = { room: room, seed: data.seed };
+    startGame();
+  }
+
+  function land(b) {
+    var dx = Math.abs(b.x - head.x);
+    if (dx > CATCH_SLOP) { missed(b); return; }
+    var perfect = dx <= PERFECT_SLOP;
+    score += perfect ? 2 : 1;
+    combo++;
+    if (perfect) { perfects++; sfxPerfect(); flash = 1; flashTxt = 'Perfect!'; puff(); }
+    else { sfxCatch(score); if (combo > 0 && combo % 10 === 0) { flash = 1; flashTxt = combo + ' in a row!'; } }
+    neck.push({ len: b.len, off: (b.x - head.x) * 0.35 });
+    neckLen += b.len;
+    if (neckLen > bestNeck) bestNeck = neckLen;
+    partySend();
+  }
+
+  function missed(b) {
+    lives--;
+    combo = 0;
+    shake = 1;
+    sfxMiss();
+    fallers.push({ x: b.x, y: catchY(), len: b.len, vy: 60, vr: (Math.random() - 0.5) * 6, r: 0 });
+    flash = 1; flashTxt = lives > 0 ? (lives + (lives === 1 ? ' life left' : ' lives left')) : '';
+    partySend();
+    if (lives <= 0) gameOver();
+  }
+
+  function puff() {
+    for (var i = 0; i < 12; i++) {
+      var a = Math.random() * Math.PI * 2, s = 40 + Math.random() * 90;
+      sparks.push({ x: head.x, y: headY - 26, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 20, life: 1 });
+    }
+  }
+
+  function gameOver() {
+    state = 'over';
+    if (partyRoom) partyRoom.send('done', { s: score, p: perfects });
+    sfxOver();
+    if (score > best) { best = score; save('christianBest', best); }
+    save('christianXP', Number(ls('christianXP', 0)) + score * 3 + perfects * 2);
+    save('christianPerfects', Number(ls('christianPerfects', 0)) + perfects);
+    document.getElementById('ovScore').textContent = score;
+    document.getElementById('ovBest').textContent = best;
+    document.getElementById('ovPerf').textContent = perfects;
+    document.getElementById('ovNeck').textContent = (bestNeck / 90).toFixed(1) + ' m';
+    document.getElementById('ovTag').textContent = score >= best && score > 0 ? 'New best!' : 'Out of lives';
+    document.getElementById('ovTitle').textContent = score > 0 ? 'Nice neck!' : 'Missed it!';
+    document.getElementById('ovSub').textContent = loops > 0
+      ? 'You got the song round ' + loops + (loops === 1 ? ' time' : ' times') + ' - it was playing at ' + rate.toFixed(1) + 'x.'
+      : 'Catch bars in time with the song to grow the neck.';
+    partyResult();
+    setTimeout(function () { show('pOver'); }, 620);
+    try {
+      var core = window.parent && window.parent !== window ? window.parent.HubCore : null;
+      if (core && core.addXP) core.addXP(score * 3 + perfects * 2);
+    } catch (e) {}
+  }
+
+  /* ---------------- input ---------------- */
+  function px(e) {
+    var r = cv.getBoundingClientRect();
+    return (e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX) - r.left;
+  }
+  var dragging = false;
+  function down(e) { if (state !== 'play') return; dragging = true; head.tx = px(e); e.preventDefault(); }
+  function move(e) { if (!dragging || state !== 'play') return; head.tx = px(e); e.preventDefault(); }
+  function up() { dragging = false; }
+  cv.addEventListener('mousedown', down); window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+  cv.addEventListener('touchstart', down, { passive: false });
+  cv.addEventListener('touchmove', move, { passive: false });
+  window.addEventListener('touchend', up);
+  /* laptop play: the head simply follows the mouse — no need to hold the button down */
+  window.addEventListener('mousemove', function (e) {
+    if (state === 'play' && !dragging && !e.buttons) head.tx = px(e);
+  });
+  /* the hub play page forwards game keys here when this iframe is not focused */
+  window.addEventListener('message', function (e) {
+    var d = e.data || {};
+    if (!d.hubKey) return;
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: d.hubKey, key: d.key || d.hubKey, bubbles: true, cancelable: true }));
+  });
+
+  var keyL = false, keyR = false;
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft' || e.key === 'a') keyL = true;
+    if (e.key === 'ArrowRight' || e.key === 'd') keyR = true;
+    if (e.key === ' ' || e.key === 'Enter') {
+      if (state === 'title') startGame();
+      else if (state === 'over') document.getElementById('bAgain').click();
+    }
+    if (e.key === 'Escape' && state === 'play') openSettings();
+  });
+  window.addEventListener('keyup', function (e) {
+    if (e.key === 'ArrowLeft' || e.key === 'a') keyL = false;
+    if (e.key === 'ArrowRight' || e.key === 'd') keyR = false;
+  });
+
+  /* gear hit area, bottom-left */
+  cv.addEventListener('click', function (e) {
+    var r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (state === 'play' && x < 150 && y > H - 80) openSettings();
+  });
+
+  /* ---------------- panels ---------------- */
+  function show(id) { document.getElementById(id).classList.add('on'); }
+  function hide(id) { document.getElementById(id).classList.remove('on'); }
+  function openSettings() { if (state !== 'play') return; state = 'pause'; show('pSet'); }
+  function closeSettings() { hide('pSet'); if (state === 'pause') { state = 'play'; last = performance.now(); } }
+
+  /* browsers only allow sound after a touch or key press, so wake the audio on every one */
+  ['pointerdown', 'touchend', 'keydown'].forEach(function (ev) {
+    document.addEventListener(ev, function () { audio(); }, { passive: true });
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) audio(); });
+  document.getElementById('bPlay').onclick = startGame;
+  document.getElementById('bAgain').onclick = function () {
+    if (partyRoom) { if (partyRoom.isHost) partyRoom.startMatch(); else partyRoom.send('rematch', {}); }
+    else startGame();
+  };
+  document.getElementById('bParty').onclick = function () {
+    if (!window.HubOnline) { alert('Party play needs an internet connection.'); return; }
+    HubOnline.openLobby({
+      game: 'christian', title: 'Like a Christian VS', min: 2, max: 2,
+      onStart: partyOnStart,
+      onEnd: function () { partyRoom = null; partySeed = null; partyNext = null; partyPaint(); },
+      onClose: function () {}
+    });
+  };
+  document.getElementById('bTitle').onclick = function () { hide('pOver'); state = 'title'; paintBest(); show('pStart'); };
+  document.getElementById('bResume').onclick = closeSettings;
+  document.getElementById('bRestart').onclick = function () { hide('pSet'); startGame(); };
+  document.getElementById('bHub').onclick = function () {
+    try { if (window.parent && window.parent !== window) { window.parent.location.href = '../../index.html'; return; } } catch (e) {}
+    location.href = '../../index.html';
+  };
+  var swSound = document.getElementById('swSound');
+  function paintSound() { swSound.textContent = soundOn ? 'On' : 'Off'; swSound.className = 'sw' + (soundOn ? '' : ' off'); }
+  swSound.onclick = function () {
+    soundOn = !soundOn; save('christianSound', soundOn ? '1' : '0'); paintSound();
+    if (master) master.gain.value = soundOn ? 0.9 : 0;
+    if (soundOn) audio();
+  };
+  paintSound();
+
+  function paintBest() {
+    var plays = Number(ls('christianPlays', 0)) || 0;
+    document.getElementById('bestLine').textContent = best
+      ? 'Best neck: ' + best + '  \u00b7  ' + plays + ' run' + (plays === 1 ? '' : 's') + ' so far'
+      : 'Song: ' + SONGS[songI].name + ' \u00b7 it speeds up every time it loops';
+  }
+  var bSong = document.getElementById('bSong');
+  function paintSong() { bSong.textContent = 'Song: ' + SONGS[songI].name; }
+  bSong.onclick = function () {
+    setSong((songI + 1) % SONGS.length);
+    paintSong(); paintBest();
+  };
+  var bPerson = document.getElementById('bPerson'), bDiff = document.getElementById('bDiff');
+  function paintPerson() { bPerson.textContent = 'Person: ' + PEOPLE[personI].name; }
+  function paintDiff() { bDiff.textContent = 'Difficulty: ' + DIFF_LIST[diffI].name; }
+  bPerson.onclick = function () {
+    loadPerson((personI + 1) % PEOPLE.length);
+    paintPerson();
+  };
+  bDiff.onclick = function () {
+    diffI = (diffI + 1) % DIFF_LIST.length;
+    save('christianDiff', String(diffI));
+    applyDiff(); setSong(songI);
+    paintDiff(); paintBest();
+  };
+  paintPerson(); paintDiff();
+  paintSong();
+  paintBest();
+
+  /* ================= DRAWING ================= */
+  function rr(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function penned(fill) {
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.lineWidth = 2.6; ctx.strokeStyle = '#5f9a66'; ctx.lineJoin = 'round'; ctx.stroke();
+  }
+
+  function drawBar(x, y, len, rot) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (rot) ctx.rotate(rot);
+    rr(-TILE.w / 2, -len, TILE.w, len, TILE.r);
+    ctx.fillStyle = TILE.fill; ctx.fill();
+    ctx.lineWidth = 2.6; ctx.strokeStyle = TILE.stroke; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawHead(x, y, r) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.closePath();
+    if (headReady) {
+      ctx.save(); ctx.clip();
+      ctx.drawImage(headImg, x - r, y - r, r * 2, r * 2);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = '#bfe6c0'; ctx.fill();
+    }
+    ctx.lineWidth = 3; ctx.strokeStyle = '#5f9a66'; ctx.stroke();
+    ctx.restore();
+  }
+
+  /* one continuous neck - his own neck, simply getting longer */
+  function drawNeck(x, top, len, w) {
+    if (len <= 1) return;
+    var steps = Math.max(6, Math.min(70, Math.round(len / 14)));
+    var left = [], right = [], i, t, y, sway, hw;
+    for (i = 0; i <= steps; i++) {
+      t = i / steps;
+      y = top + len * t;
+      sway = Math.sin(t * 5.2 + beats * 0.9) * (2.2 + t * 5) * (1 - Math.abs(0.5 - t));
+      hw = (w / 2) * (1 - 0.1 * t);
+      left.push([x + sway - hw, y]);
+      right.push([x + sway + hw, y]);
+    }
+    ctx.beginPath();
+    ctx.moveTo(left[0][0], left[0][1]);
+    for (i = 1; i < left.length; i++) ctx.lineTo(left[i][0], left[i][1]);
+    var endX = right[right.length - 1][0], endY = right[right.length - 1][1];
+    ctx.quadraticCurveTo((left[left.length - 1][0] + endX) / 2, endY + w * 0.55, endX, endY);
+    for (i = right.length - 2; i >= 0; i--) ctx.lineTo(right[i][0], right[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = SKIN; ctx.fill();
+    ctx.lineWidth = 2.6; ctx.strokeStyle = SKIN_DARK; ctx.lineJoin = 'round'; ctx.stroke();
+  }
+
+  function chinY() { return headY + 26; }
+  function tipRaw() { return chinY() + neckDraw + 26; }
+  /* once the neck reaches the bottom, the view scrolls so the tip stays low on screen */
+  function camY() {
+    var anchor = headY + (H * 0.85 - headY) / ZOOM;
+    return 0; /* the head never moves; the neck simply runs off the bottom */
+  }
+  function visibleTop() { return camY() + headY - headY / ZOOM; }
+  function catchY() { return headY - 30; }   /* top of his head: where every tile is caught */
+
+  function drawScene(now) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#dff0d6'; ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    if (shake > 0) ctx.translate((Math.random() - 0.5) * 9 * shake, (Math.random() - 0.5) * 6 * shake);
+    ctx.translate(W / 2, headY); ctx.scale(ZOOM, ZOOM); ctx.translate(-W / 2, -headY); ctx.translate(0, -camY());
+
+    /* guide line at head height */
+    ctx.save();
+    ctx.setLineDash([10, 9]); ctx.lineWidth = 2.4; ctx.strokeStyle = 'rgba(94,140,99,.55)';
+    ctx.beginPath(); ctx.moveTo(14, catchY()); ctx.lineTo(W - 14, catchY()); ctx.stroke();
+    ctx.restore();
+
+    /* falling bars */
+    for (var i = 0; i < bars.length; i++) {
+      var b = bars[i];
+      var t = (b.hit - beats) / TRAVEL;                     /* 1 = just spawned, 0 = landing */
+      var y = catchY() - t * (catchY() - visibleTop() + 200);
+      drawBar(b.x, y, b.len, 0);
+    }
+    /* missed bars tumbling off */
+    for (i = 0; i < fallers.length; i++) {
+      var f = fallers[i];
+      drawBar(f.x, f.y, f.len, f.r);
+    }
+
+    /* his neck: grows DOWN from his chin; the tip is where the next tile lands */
+    drawNeck(head.x, chinY(), neckDraw + 26, NECK_W);
+
+    /* head stays put */
+    drawHead(head.x, headY, 30);
+
+    ctx.restore();
+
+    /* sparkles */
+    for (i = 0; i < sparks.length; i++) {
+      var s = sparks[i];
+      ctx.globalAlpha = Math.max(0, s.life);
+      ctx.fillStyle = '#6aa76f';
+      ctx.beginPath(); ctx.arc(s.x, s.y, 2.6, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    /* "Perfect!" */
+    if (flash > 0 && flashTxt) {
+      ctx.globalAlpha = Math.min(1, flash * 1.6);
+      ctx.fillStyle = '#4e7a52';
+      ctx.font = '600 24px "Comic Sans MS","Chalkboard SE","Segoe Print",cursive';
+      ctx.textAlign = 'center';
+      ctx.fillText(flashTxt, Math.max(70, Math.min(W - 70, head.x - 78)), catchY() - 40 - (1 - flash) * 14);
+      ctx.globalAlpha = 1;
+    }
+
+    /* ---- HUD ---- */
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#4e7a52';
+    ctx.font = '600 25px "Comic Sans MS","Chalkboard SE","Segoe Print",cursive';
+    ctx.fillText('Score: ' + score, 18, 40);
+
+    /* lives, top right */
+    var lx = W - 24;
+    ctx.textAlign = 'right';
+    ctx.font = '600 23px "Comic Sans MS","Chalkboard SE","Segoe Print",cursive';
+    ctx.fillText('x ' + Math.max(0, lives), lx, 40);
+    drawHead(lx - 54, 32, 17);
+
+    /* song speed badge */
+    if (rate > 1.001 || speedFlash > 0) {
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = speedFlash > 0 ? 1 : 0.7;
+      ctx.font = '600 15px "Comic Sans MS","Chalkboard SE","Segoe Print",cursive';
+      ctx.fillStyle = speedFlash > 0 ? '#c98a16' : '#7ba37f';
+      ctx.fillText('\u266a ' + rate.toFixed(1) + 'x', W / 2, 38 - (speedFlash > 0 ? speedFlash * 4 : 0));
+      ctx.globalAlpha = 1;
+    }
+
+    /* settings gear, bottom left */
+    ctx.save();
+    ctx.translate(46, H - 48);
+    ctx.lineWidth = 2.6; ctx.strokeStyle = 'rgba(94,140,99,.8)';
+    ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 8.5, 0, Math.PI * 2); ctx.stroke();
+    for (var g = 0; g < 6; g++) {
+      var a2 = g * Math.PI / 3;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a2) * 9, Math.sin(a2) * 9);
+      ctx.lineTo(Math.cos(a2) * 16, Math.sin(a2) * 16);
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(94,140,99,.75)';
+    ctx.font = '400 17px "Comic Sans MS","Chalkboard SE","Segoe Print",cursive';
+    ctx.fillText('Settings', 78, H - 41);
+  }
+
+  /* ================= LOOP ================= */
+  function frame(now) {
+    requestAnimationFrame(frame);
+    var dt = Math.min(0.05, (now - last) / 1000); last = now;
+
+    if (state === 'play') {
+      /* keyboard nudge */
+      if (keyL) head.tx -= 460 * dt;
+      if (keyR) head.tx += 460 * dt;
+      head.tx = Math.max(34, Math.min(W - 34, head.tx));
+      head.x += (head.tx - head.x) * Math.min(1, dt * 16);
+
+      /* the song drives everything */
+      beats += dt / beatDur();
+      scheduleMusic();
+
+      while (nextBeat < beats + TRAVEL) { spawn(nextBeat); nextBeat += GAP; }
+
+      for (var i = bars.length - 1; i >= 0; i--) {
+        if (beats >= bars[i].hit) { var b = bars.splice(i, 1)[0]; land(b); }
+      }
+    }
+
+    /* animations keep running on every screen */
+    neckDraw += (neckLen - neckDraw) * Math.min(1, dt * 9);
+    for (var j = fallers.length - 1; j >= 0; j--) {
+      var f = fallers[j];
+      f.vy += 900 * dt; f.y += f.vy * dt; f.r += f.vr * dt;
+      if (f.y > H + 200) fallers.splice(j, 1);
+    }
+    for (var k = sparks.length - 1; k >= 0; k--) {
+      var s = sparks[k];
+      s.vy += 300 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt * 1.5;
+      if (s.life <= 0) sparks.splice(k, 1);
+    }
+    if (flash > 0) flash -= dt * 1.1;
+    if (shake > 0) shake -= dt * 3.2;
+    if (speedFlash > 0) speedFlash -= dt * 0.7;
+
+    drawScene(now);
+  }
+
+  resize(); layout();
+  last = performance.now();
+  requestAnimationFrame(frame);
+
+  /* debug / test hooks */
+  window.__christian = {
+    get score() { return score; },
+    get neck() { return neckLen; },
+    get state() { return state; },
+    get lives() { return lives; },
+    get rate() { return rate; },
+    get loops() { return loops; },
+    get perfects() { return perfects; },
+    get headX() { return head.x; },
+    get tileX() {
+      var soon = null;
+      for (var i = 0; i < bars.length; i++) if (!soon || bars[i].hit < soon.hit) soon = bars[i];
+      return soon ? soon.x : null;
+    },
+    start: startGame
+  };
+})();
+</script>
+</body>
+</html>

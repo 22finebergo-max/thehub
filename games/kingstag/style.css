@@ -1,0 +1,43 @@
+:root{--palette-0:rgb(16, 45, 62);--palette-1:rgb(241, 251, 255);--palette-2:rgba(16, 55, 72, 0.91);--palette-3:rgba(145, 245, 207, 0.533);--palette-4:rgba(7, 26, 36, 0.533);--palette-5:rgba(7, 23, 36, 0.667);--palette-6:rgb(137, 234, 201);--palette-7:rgb(22, 62, 82);--palette-8:rgb(24, 59, 66);--palette-9:rgba(0, 0, 0, 0.6);--palette-10:rgb(255, 220, 113);--palette-11:rgb(224, 245, 241);--palette-12:rgb(154, 242, 197);--palette-13:rgb(80, 209, 197);--palette-14:rgb(16, 42, 57);--palette-15:rgb(38, 73, 89);--palette-16:rgb(239, 255, 255);--palette-17:rgb(142, 200, 193);--palette-18:rgb(183, 247, 222);--palette-19:rgba(22, 67, 87, 0.867);--palette-20:white;--palette-21:#17333c;--palette-22:#f4fff9;--palette-23:#8ceac9;--palette-24:#ffe66b;--palette-25:#081823bb;}
+
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0px; width: 100%; height: 100%; overflow: hidden; background: var(--palette-0); color: var(--palette-1); font: 15px system-ui, sans-serif; touch-action: none; user-select: none; }
+
+canvas { position: absolute; inset: 0px; width: 100%; height: 100%; }
+
+#hud { position: absolute; top: 9px; left: 9px; right: 9px; display: flex; justify-content: space-between; gap: 6px; pointer-events: none; }
+
+.pill { padding: 7px 11px; border-radius: 999px; background: var(--palette-2); border: 1px solid var(--palette-3); font-weight: 850; box-shadow: var(--palette-4) 0px 4px 16px; }
+
+.veil { position: absolute; inset: 0px; display: none; align-items: center; justify-content: center; background: var(--palette-5); padding: 16px; }
+
+.veil.on { display: flex; }
+
+.panel { width: min(90vw, 380px); padding: 23px; border: 2px solid var(--palette-6); border-radius: 22px; background: linear-gradient(145deg, var(--palette-7), var(--palette-8)); text-align: center; box-shadow: var(--palette-9) 0px 18px 55px; }
+
+.panel h1 { margin: 0px; color: var(--palette-10); font-size: 30px; }
+
+.panel p { line-height: 1.5; color: var(--palette-11); }
+
+.btn { width: 100%; padding: 13px; margin-top: 9px; border: 0px; border-radius: 14px; background: linear-gradient(100deg, var(--palette-12), var(--palette-13)); color: var(--palette-14); font: 850 17px system-ui; }
+
+.btn.alt { background: var(--palette-15); color: var(--palette-16); border: 1px solid var(--palette-17); }
+
+#pad { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: 54px 54px 54px; grid-template-rows: 46px 46px; gap: 4px; opacity: 0.9; }
+
+#pad button { border: 1px solid var(--palette-18); border-radius: 13px; background: var(--palette-19); color: var(--palette-20); font-size: 20px; font-weight: 900; touch-action: none; }
+
+#pad .up { grid-column: 2; }
+
+#pad .left { grid-area: 2 / 1; }
+
+#pad .down { grid-area: 2 / 2; }
+
+#pad .right { grid-area: 2 / 3; }
+:root { --control-bg: var(--palette-21); --control-ink: var(--palette-22); --control-line: var(--palette-23); --highlight: var(--palette-24); --scrim: var(--palette-25); }
+.btn.alt{display:block;text-decoration:none}.panel{border-radius:8px;max-height:90vh;overflow:auto}.panel h1{letter-spacing:0}.crew-roster{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:20px 0}.crew-roster span{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px}.crew-roster img{width:48px;height:48px;border-radius:50%;object-fit:cover;object-position:center 15%;border:2px solid var(--control-line)}
+.pause-button{position:absolute;right:12px;top:55px;width:42px;height:42px;border-radius:8px;background:var(--control-bg);color:var(--control-ink);border:1px solid var(--control-line);font-size:20px;z-index:2;cursor:pointer}body:has(.veil.on) .pause-button{display:none}.paused canvas{opacity:.5}.paused::after{content:'Paused';position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);font-size:28px;font-weight:bold;pointer-events:none;color:var(--control-ink)}button{cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid var(--highlight);outline-offset:3px}
+
+.dash-button{position:absolute;bottom:25px;right:22px;width:58px;height:58px;background:var(--highlight);color:var(--control-bg);border:2px solid var(--control-line);border-radius:8px;font:800 18px system-ui}.dash-button:disabled{opacity:.5}#hud .pill{font-size:12px;padding:8px}#pad button{border-radius:8px}body:has(.veil.on) .dash-button{display:none}

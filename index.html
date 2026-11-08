@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Game Hub</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#070b18">
+<meta name="description" content="More than thirty games in one place, including Brawl Kings, Wack a Joe, Flappy Haider and Snariyan — sharing one profile and a global leaderboard.">
+<meta property="og:title" content="The Game Hub · Brawl Kings and more"><meta property="og:description" content="The crew enters the Brawl Kings arena. More than thirty games, one Game Hub."><meta property="og:type" content="website"><meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Game Hub">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#070b18;--line:rgba(255,255,255,.1);--txt:#eaf0ff;--mut:#95a3c7;--a1:#36d1ff;--a2:#ff4fa3;--a3:#ffd24a}
+  body{min-height:100vh;font-family:"Trebuchet MS",system-ui,-apple-system,Segoe UI,sans-serif;color:var(--txt);background:var(--bg);overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;z-index:-2;background:
+      radial-gradient(900px 600px at 15% -10%,rgba(54,209,255,.25),transparent 60%),
+      radial-gradient(800px 600px at 90% 10%,rgba(255,79,163,.22),transparent 60%),
+      radial-gradient(900px 700px at 50% 110%,rgba(255,210,74,.14),transparent 60%)}
+  body::after{content:"";position:fixed;inset:0;z-index:-1;opacity:.35;
+      background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+      background-size:48px 48px;
+      -webkit-mask-image:radial-gradient(circle at 50% 30%,#000 10%,transparent 75%);
+      mask-image:radial-gradient(circle at 50% 30%,#000 10%,transparent 75%)}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+  header{padding:62px 24px 4px;text-align:center}
+  .badge{display:inline-block;font-size:12px;letter-spacing:.35em;text-transform:uppercase;color:var(--a1);
+      border:1px solid rgba(54,209,255,.4);border-radius:999px;padding:7px 16px;background:rgba(54,209,255,.08);margin-bottom:22px}
+  h1{font-size:clamp(42px,8.5vw,92px);line-height:1;letter-spacing:-2px;
+      background:linear-gradient(100deg,var(--a1),#fff 40%,var(--a2) 75%,var(--a3));
+      -webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 20px 60px rgba(54,209,255,.25)}
+  .sub{margin:16px auto 0;max-width:560px;color:var(--mut);font-size:17px;line-height:1.6}
+  #install{display:none;margin:22px auto 0;cursor:pointer;font:inherit;font-weight:700;font-size:15px;color:#07101f;
+      border:0;padding:13px 26px;border-radius:999px;background:linear-gradient(95deg,#ffd24a,#ffb347);
+      box-shadow:0 12px 30px rgba(255,179,71,.3);transition:transform .2s}
+  #install:hover{transform:translateY(-2px)}
+  #offline{display:none;text-align:center;color:#ffb347;font-size:13px;padding:14px 24px 0}
+  #offline.on{display:block}
+
+  /* profile */
+  .profile{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:40px auto 0;padding:18px 20px;border-radius:20px;
+      border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02))}
+  .avatar{position:relative;width:60px;height:60px;flex:0 0 auto;border-radius:18px;display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--a1),var(--a2));font-size:26px}
+  .avatar span{position:absolute;right:-6px;bottom:-6px;font-size:11px;font-weight:800;color:#07101f;background:var(--a3);
+      border-radius:999px;padding:3px 7px;box-shadow:0 4px 10px rgba(0,0,0,.4)}
+  .pinfo{flex:1 1 220px;min-width:200px}
+  .pname{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .pname input{flex:1 1 auto;min-width:0;font:inherit;font-size:15px;color:inherit;padding:8px 12px;border-radius:10px;
+      border:1px solid var(--line);background:rgba(255,255,255,.06)}
+  .pname button{font:inherit;font-size:13px;font-weight:700;cursor:pointer;border:0;border-radius:999px;padding:9px 14px;
+      color:#07101f;background:linear-gradient(95deg,var(--a1),#9ef0ff)}
+  .xpbar{height:9px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}
+  .xpbar i{display:block;height:100%;border-radius:999px;background:linear-gradient(95deg,var(--a1),var(--a2),var(--a3));transition:width .5s}
+  .xptext{margin-top:7px;font-size:12.5px;color:var(--mut)}
+  .toggles{display:flex;gap:8px;flex-wrap:wrap}
+  .tog{font:inherit;font-size:13px;cursor:pointer;color:#dfe8ff;border:1px solid var(--line);background:rgba(255,255,255,.06);
+      border-radius:999px;padding:9px 15px;transition:all .2s}
+  .tog:hover{border-color:rgba(255,255,255,.3)}
+  .tog.off{opacity:.45;text-decoration:line-through}
+
+  /* continue */
+  .continue{margin:22px auto 0;padding:20px 22px;border-radius:20px;border:1px solid rgba(255,210,74,.3);
+      background:linear-gradient(135deg,rgba(255,210,74,.12),rgba(255,79,163,.08))}
+  .continue h3{font-size:13px;letter-spacing:.24em;text-transform:uppercase;color:var(--a3);margin-bottom:12px}
+  .crow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .crow .cicon{font-size:38px}
+  .crow .ctext{flex:1 1 200px}
+  .crow .ctext b{font-size:19px;display:block}
+  .crow .ctext small{color:var(--mut);font-size:13px}
+  .crow a.resume{font-weight:700;font-size:15px;text-decoration:none;color:#07101f;padding:12px 22px;border-radius:999px;
+      background:linear-gradient(95deg,var(--a3),#ffb347);box-shadow:0 10px 24px rgba(255,210,74,.25)}
+  .chips{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+  .chip{display:inline-flex;align-items:center;gap:7px;font-size:13px;padding:8px 13px;border-radius:999px;
+      border:1px solid var(--line);background:rgba(0,0,0,.2)}
+  .chip.ready{border-color:rgba(61,220,132,.5);background:rgba(61,220,132,.12);color:#9df5c4}
+  .chip.done{opacity:.6}
+  .dot{width:8px;height:8px;border-radius:50%;background:#3ddc84}
+  .chip.done .dot{background:#6c7aa0}
+
+  /* game cards */
+  .grid{margin:34px auto 70px;display:grid;gap:26px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .card{position:relative;display:flex;flex-direction:column;overflow:hidden;
+      background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+      border:1px solid var(--line);border-radius:22px;text-decoration:none;color:inherit;
+      transition:transform .25s,box-shadow .25s,border-color .25s}
+  .card:hover{transform:translateY(-8px);border-color:rgba(255,255,255,.28);box-shadow:0 26px 60px rgba(0,0,0,.55)}
+  .art{height:190px;display:grid;place-items:center;position:relative;overflow:hidden}
+  .art.flappy{background:linear-gradient(180deg,#4ec0ff,#9ae6ff 60%,#ffe9a8)}
+  .art.amaan{background:linear-gradient(140deg,#15224a,#3a1a52 60%,#7a1f47)}
+  .art.christian{background:#dff0d6}
+  .art.christian .stack{position:absolute;left:50%;bottom:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:3px}
+  .art.christian .stack i{display:block;width:44px;height:11px;border-radius:3px;background:#bfe6c0;border:2px solid #5f9a66;box-shadow:0 1px 0 rgba(0,0,0,.12)}
+  .art.christian .stack i:nth-child(2){background:#bfe6c0;border:2px solid #5f9a66;transform:translateX(7px)}
+  .art.christian .stack i:nth-child(3){background:#bfe6c0;border:2px solid #5f9a66;transform:translateX(-6px)}
+  .art.christian .stack i:last-child{width:34px;height:30px;border-radius:9px 9px 4px 4px;background:#33436f;border:2px solid #5f9a66}
+  .art.christian .face{width:50px;height:50px;border-radius:50%;border:3px solid #fff;box-shadow:0 6px 16px rgba(0,0,0,.28);background-size:cover;background-position:center}
+  .card.sky .play{background:linear-gradient(95deg,#ffd24a,#ffb02e);box-shadow:0 10px 24px rgba(255,176,46,.3)}
+  .art .emoji{font-size:84px;filter:drop-shadow(0 10px 18px rgba(0,0,0,.35));transition:transform .3s}
+  .card:hover .art .emoji{transform:scale(1.12) rotate(-5deg)}
+  .pipes{position:absolute;inset:0;opacity:.75}
+  .pipes span{position:absolute;bottom:0;width:38px;background:linear-gradient(90deg,#2f9e44,#69db7c,#2f9e44);
+      border:3px solid #1b5e20;border-bottom:none;border-radius:4px 4px 0 0}
+  .body{padding:22px 24px 26px}
+  .body h2{font-size:25px;margin-bottom:8px}
+  .body p{color:var(--mut);font-size:15px;line-height:1.55;min-height:46px}
+  .stats{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 4px;font-size:12.5px;color:#cdd8f5}
+  .stats b{color:#fff}
+  .tags{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 20px}
+  .tag{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#cdd8f5;background:rgba(255,255,255,.08);
+      border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+  .play{display:inline-flex;align-items:center;gap:10px;align-self:flex-start;font-weight:700;font-size:15px;color:#07101f;
+      background:linear-gradient(95deg,var(--a1),#9ef0ff);padding:12px 22px;border-radius:999px;box-shadow:0 10px 24px rgba(54,209,255,.3)}
+  .card.pink .play{background:linear-gradient(95deg,var(--a2),#ffb0d6);box-shadow:0 10px 24px rgba(255,79,163,.3)}
+  footer{text-align:center;color:#6c7aa0;font-size:13px;padding:0 24px 50px}
+  .featured-brawl{display:block;position:relative;margin:24px 0 0;height:180px;overflow:hidden;background:var(--bg)}
+  .featured-brawl img{width:100%;height:100%;object-fit:cover;object-position:center 48%}
+  .featured-brawl .feature-label{position:absolute;bottom:0;left:0;right:0;padding:34px 18px 14px;background:linear-gradient(transparent,var(--bg));display:flex;justify-content:space-between;align-items:end;gap:12px}
+  .feature-label b{font-size:28px;color:var(--txt);display:block}.feature-label small{color:var(--a3);font-weight:700}.feature-label .play{padding:10px 16px;flex-shrink:0}
+  .art.brawlkings img{width:100%;height:100%;object-fit:cover}
+.crew-art{background:var(--bg)}.crew-art img{width:96px;height:96px;object-fit:cover;object-position:center 15%;border-radius:50%;border:3px solid var(--a1)}
+  @media(max-width:700px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:20px auto 40px}.grid .card .body p,.grid .card .tags,.grid .card .stats{display:none}.grid .card h2{font-size:15px}.grid .card .art{height:90px}.grid .card .body{padding:10px}.grid .card .play{font-size:12px}}
+
+  /* ---- light, bright look (like 2 Player Games) ---- */
+  :root{--bg:#eaf4ff;--line:rgba(20,33,61,.08);--txt:#14213d;--mut:#5b6b8c}
+  body::before,body::after{display:none}
+  body{background:linear-gradient(180deg,#dcecff 0%,#eaf4ff 45%,#f6f9ff 100%)}
+  #topbar{background:rgba(234,244,255,.92)!important}
+  #topbar span{color:#14213d!important}
+  header .badge{color:#2f7cff!important}
+  header h1{color:#14213d!important;text-shadow:0 4px 0 #bcd5f5}
+  header .sub{color:#5b6b8c!important}
+  .profile{background:#fff!important;border:0!important;box-shadow:0 8px 0 #cfe0f7}
+  .tog{background:#eef4ff!important;color:#14213d!important;border:0!important;border-radius:14px!important;font-weight:700}
+  .card{background:#fff!important;border:0!important;border-radius:28px!important;box-shadow:0 10px 0 #cfe0f7!important;color:#14213d}
+  .card:hover{transform:translateY(-4px)!important;box-shadow:0 14px 0 #cfe0f7!important}
+  .art{height:180px!important;border-radius:28px 28px 0 0}
+  .body{padding:18px 20px 22px!important}
+  .body h2{font-weight:900;color:#14213d;letter-spacing:-.3px}
+  .body p{color:#5b6b8c!important}
+  .tag{background:#eef4ff!important;color:#2f7cff!important;border:0!important;font-weight:700}
+  .card .play,.card.sky .play,.card.pink .play{background:#2f7cff!important;color:#fff!important;box-shadow:0 8px 18px rgba(47,124,255,.35)!important;border-radius:16px!important;padding:12px 22px!important;font-weight:900!important}
+  .continue{background:#fff!important;border:0!important;box-shadow:0 8px 0 #cfe0f7}
+  .continue h3{color:#2f7cff!important}
+  #install{background:#2f7cff!important;color:#fff!important;border:0!important;border-radius:16px!important;font-weight:900!important;box-shadow:0 8px 18px rgba(47,124,255,.35)}
+
+  /* ---- livelier thumbnails ---- */
+  .art{position:relative;overflow:hidden}
+  .art::after{content:"";position:absolute;left:-10%;right:-10%;bottom:-38px;height:70px;z-index:0;border-radius:50%;background:rgba(255,255,255,.22);pointer-events:none}
+  .art > img,.art > .face,.art > span,.art > div{position:relative;z-index:1}
+  .art img{box-shadow:0 8px 0 rgba(20,33,61,.28),0 14px 24px rgba(20,33,61,.25)!important;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+  .card:hover .art img{transform:translateY(-6px) rotate(-4deg)}
+  .art img:nth-child(2){transform:translateY(-8px) scale(1.08)}
+  .card:hover .art img:nth-child(2){transform:translateY(-14px) scale(1.12) rotate(3deg)}
+
+
+  /* ---- v91 card polish ---- */
+  .card .body{flex:1 1 auto;display:flex;flex-direction:column}
+  .card .body h2{margin-bottom:8px}
+  .card .body .play{margin-top:auto}
+  .card .play{white-space:nowrap}
+  .art > img[src^="thumbs/"]{box-shadow:none!important;transform:none!important;border-radius:0!important}
+  .card:hover .art > img[src^="thumbs/"]{transform:scale(1.05)!important}
+  @media(max-width:700px){
+    .grid .card .body{padding:10px 10px 14px!important}
+    .grid .card h2{font-size:15px;line-height:1.2;min-height:2.4em;display:flex;align-items:flex-start}
+    .grid .card .play{padding:10px 12px!important;font-size:12px!important;gap:6px;width:100%;justify-content:center;box-sizing:border-box}
+  }
+
+  /* ---- readability fixes ---- */
+  .chip.ready{color:#0f6b3a!important;background:#e3f8ec!important;border-color:#7ad9a4!important;font-weight:700}
+  .chip{color:#14213d!important}
+  .chip.done{color:#5b6b8c!important}
+  /* global chat (hub) */
+.hub-chat{--card:#ffffff;--line:#dbe5f5;--teal:#1f8fd6;--mut:#6b7a99;--red:#c8534f;--green:#1fa36b;--gold:#ffd24a;--bg:#f3f7ff;--ink:#14213d;--n:#14213d;background:#fff;border-radius:22px;padding:18px;margin:22px auto 0;max-width:760px;box-shadow:0 8px 0 #cfe0f7;color:var(--ink)}
+.hub-chat .panel-head {display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:18px 0 8px;flex-wrap:wrap}
+.hub-chat .panel-head:first-child {margin-top:0}
+.hub-chat .new-tag {font-style:normal;background:var(--gold);color:#14203f;border-radius:4px;font-size:9px;padding:3px 5px;vertical-align:middle}
+.hub-chat /* Supabase Global Chat */
+.chat-status {display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:4px 9px;font-size:11px;font-weight:800;background:var(--card);border:1px solid var(--line)}
+.hub-chat .chat-status::before {content:'';width:8px;height:8px;border-radius:50%;background:var(--mut)}
+.hub-chat .chat-status.good::before {background:var(--green);box-shadow:0 0 7px var(--green)}
+.hub-chat .chat-status.wait::before {background:var(--gold);animation:chatBlink 1s infinite}
+.hub-chat .chat-status.bad::before {background:var(--red)}
+.hub-chat .chat-safety {background:#fff4cf;color:#4a390b;border:1px solid #e3b74a;border-radius:11px;padding:10px 12px;display:grid;gap:2px;margin-bottom:10px}
+.hub-chat .chat-safety b {font-size:13px}
+.hub-chat .chat-safety span {font-size:11px}
+.hub-chat .chat-error {background:rgba(200,83,79,.1);border:2px solid var(--red);border-radius:12px;padding:12px;margin:10px 0}
+.hub-chat .chat-error p {font-size:12px;color:var(--mut);word-break:break-word}
+.hub-chat .chat-name-card {background:var(--card);border:2px solid var(--teal);border-radius:15px;padding:15px;margin:10px 0}
+.hub-chat .chat-name-card p {font-size:12px;color:var(--mut)}
+.hub-chat .chat-name-card>div {display:flex;gap:7px}
+.hub-chat .chat-name-card input {min-width:0;flex:1;background:var(--bg);color:var(--ink);border:2px solid var(--line);border-radius:9px;padding:9px}
+.hub-chat .chat-name-card>small,
+.hub-chat .chat-compose>p {display:block;color:var(--red);font-size:11px;margin:6px 0 0;min-height:14px}
+.hub-chat .chat-main {background:var(--card);border:2px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+.hub-chat .chat-toolbar {display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:9px 11px;background:var(--navy);color:#fff;font-size:11px}
+.hub-chat .chat-toolbar>div {margin-right:auto}
+.hub-chat .chat-toolbar button {border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;border-radius:7px;padding:4px 7px;font-size:10px;cursor:pointer}
+.hub-chat .chat-messages {height:min(54vh,450px);min-height:300px;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:7px;background:linear-gradient(rgba(20,32,63,.025),rgba(20,32,63,.025)),var(--bg);scrollbar-color:var(--mut) transparent}
+.hub-chat .chat-empty {margin:auto;text-align:center;color:var(--mut);font-size:12px}
+.hub-chat .chat-message {align-self:flex-start;max-width:min(86%,500px);background:var(--card);border:1px solid var(--line);border-radius:5px 13px 13px 13px;padding:7px 9px;box-shadow:0 2px 5px rgba(20,32,63,.07)}
+.hub-chat .chat-message.own {align-self:flex-end;border-color:var(--teal);border-radius:13px 5px 13px 13px;background:rgba(47,154,168,.09)}
+.hub-chat .chat-message-top {display:flex;justify-content:space-between;gap:12px;align-items:center}
+.hub-chat .chat-message-top b {font-size:11px;color:var(--teal);overflow:hidden;text-overflow:ellipsis}
+.hub-chat .chat-message-top time {font-size:9px;color:var(--mut);white-space:nowrap}
+.hub-chat .chat-message p {font-size:13px;line-height:1.35;white-space:pre-wrap;word-break:break-word;margin:3px 0;color:var(--ink)}
+.hub-chat .chat-message-actions {display:flex;justify-content:flex-end;gap:5px;opacity:.55}
+.hub-chat .chat-message:hover .chat-message-actions,
+.hub-chat .chat-message:focus-within .chat-message-actions {opacity:1}
+.hub-chat .chat-message-actions button {border:0;background:none;color:var(--mut);font-size:9px;padding:2px;cursor:pointer}
+.hub-chat .chat-message-actions button:hover {color:var(--red)}
+.hub-chat .chat-compose {border-top:2px solid var(--line);padding:9px;background:var(--card)}
+.hub-chat .chat-compose textarea {min-height:54px;max-height:130px}
+.hub-chat .chat-compose>div {display:flex;align-items:center;justify-content:flex-end;gap:9px;margin-top:5px}
+.hub-chat .chat-compose>div small {color:var(--mut);font-size:10px}
+.hub-chat .chat-compose .big-btn {width:auto;min-width:90px;margin:0;padding:7px 15px}
+.hub-chat .chat-rules {margin-top:10px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px}
+.hub-chat .chat-rules summary {font-size:12px;font-weight:700;cursor:pointer}
+.hub-chat .chat-rules li {font-size:11px;color:var(--mut);margin:4px 0}
+.hub-chat .chat-name-card>div {display:grid}
+.hub-chat .chat-messages {height:55vh;min-height:280px}
+.hub-chat .chat-message {max-width:92%}
+.hub-chat .chat-toolbar>div {width:100%}
+.hub-chat .chat-status.wait::before {animation:none}
+.hub-chat .tab .new-tag {font-size:8.5px;letter-spacing:.7px;padding:2px 5px;border-radius:5px;
+  background:var(--gold-2);color:#3a2a05;font-weight:800;margin-left:5px;vertical-align:1px;}
+.hub-chat /* ---------------- HEADINGS & PANELS ---------------- */
+.panel-head {margin:24px 0 10px;align-items:center}
+.hub-chat .chat-main,
+.hub-chat .mini-game-card,
+.hub-chat .pet-help,
+.hub-chat .chat-rules {border-radius:var(--r-md)}
+@keyframes chatBlink {50%{opacity:.35}}
+  .stats{color:#5b6b8c!important}
+  .stats b{color:#14213d!important}
+  /* touch targets: at least 44px tall */
+  .tog{min-height:44px;display:inline-flex;align-items:center}
+  /* footer: darker so it passes 4.5:1 */
+  footer{color:#4f5f80!important}
+</style>
+</head>
+<body>
+
+<nav id="topbar" aria-label="Site" style="position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(10,16,34,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
+  <button id="topSettings" aria-label="Settings" style="width:52px;height:52px;border-radius:16px;border:0;background:#5f7388;font-size:24px;color:#fff;box-shadow:0 5px 0 #3e4d5e;cursor:pointer">⚙️</button>
+  <span style="font-weight:900;color:#fff;font-size:17px;letter-spacing:.5px">THE GAME HUB</span>
+  <span style="width:52px"></span>
+</nav>
+<script>
+  document.getElementById('topSettings').onclick = function () {
+    var p = document.querySelector('.profile');
+    if (p) p.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+</script>
+
+
+<header>
+  <div class="badge" id="gameCount">Lots of games · One place</div>
+  <h1>THE GAME HUB</h1>
+  <p class="sub">One profile, one sound switch, every game — and they all work offline once installed.</p>
+  <button id="install">📲 Install the app</button>
+</header>
+<div id="offline">You're offline — the games still work, the leaderboard syncs when you reconnect.</div>
+
+<div class="wrap">
+
+
+  <section class="profile">
+    <div class="avatar">🎮<span id="plevel">Lv 1</span></div>
+    <div class="pinfo">
+      <div class="pname">
+        <input id="pnameInput" maxlength="20" placeholder="Your name (shared by every game)">
+        <button id="pnameSave">Save</button>
+      </div>
+      <div class="xpbar"><i id="pxpbar" style="width:0%"></i></div>
+      <div class="xptext" id="pxptext">—</div>
+    </div>
+    <div class="toggles">
+      <button class="tog" id="togSound">🔊 Sound</button>
+      <button class="tog" id="togHaptic">📳 Haptics</button>
+    </div>
+  </section>
+
+  <section class="hub-chat" id="p-chat" role="region" aria-label="Global chat">
+      <div class="panel-head"><h2>Global Chat</h2><span class="chat-status wait" id="chatStatus">Open this tab to connect</span></div>
+      <div class="chat-safety"><b>🌍 Public chat</b><span>Messages can be seen by other players. Don’t share your real name, school, address, passwords or other personal information.</span></div>
+      <div class="chat-error" id="chatError" hidden><b>Chat could not connect</b><p id="chatErrorText"></p><button class="btn" id="chatRetry">Retry connection</button></div>
+
+      <div class="chat-name-card" id="chatNameCard" hidden>
+        <b>Choose a chat name</b><p>Use 3–16 letters, numbers or underscores. It must be unique.</p><div><input id="chatNameInput" maxlength="16" autocomplete="nickname" placeholder="AmaanFan123"><button class="btn primary" id="chatSaveName">Save name</button></div><small id="chatNameError"></small>
+      </div>
+
+      <div class="chat-main" id="chatMain" hidden>
+        <div class="chat-toolbar"><div>Chatting as <b id="chatMyName"></b></div><button id="chatChangeName">Change name</button><button id="chatClearBlocks">Blocked: <span id="chatBlockedCount">0</span> · clear</button></div>
+        <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-label="Global chat messages"><div class="chat-empty">Loading messages…</div></div>
+        <div class="chat-compose"><textarea id="chatInput" rows="2" maxlength="250" placeholder="Message global chat…" aria-label="Chat message"></textarea><div><small id="chatCharCount">0 / 250</small><button class="big-btn" id="chatSend" disabled>Send</button></div><p id="chatSendError"></p></div>
+      </div>
+
+      <details class="chat-rules"><summary>Chat rules and moderation</summary><ul><li>Be respectful—no harassment, hate speech, threats or sexual content.</li><li>No personal information, impersonation, spam or links.</li><li>Messages are limited to 250 characters, with a 3-second cooldown and 10-message-per-minute limit.</li><li>Use Report for inappropriate messages. Block hides that player on this device.</li><li>Moderators can delete messages and ban anonymous chat accounts through Supabase.</li><li>Chat identities are separate from game saves. Clearing browser storage creates a new anonymous chat account.</li></ul></details>
+    </section>
+
+  <section class="continue" id="continue" hidden>
+    <h3>Continue playing</h3>
+    <div class="crow">
+      <div class="cicon" id="cicon">🎮</div>
+      <div class="ctext"><b id="ctitle">—</b><small id="csub">—</small></div>
+      <a class='resume' href='play.html' id='cresume'>Resume →</a>
+    </div>
+    <div class="chips" id="cchips"></div>
+  </section>
+
+  <main class="grid">
+    <a class="card" href="play.html?game=brawlkings">
+      <div class="art brawlkings"><img src="games/brawlkings/cover.jpg" alt="Brawl Kings arena" width="1536" height="1024" loading="lazy"></div>
+      <div class="body"><h2>Brawl Kings</h2><p>The whole crew enters the arena. Eleven unique fighters, powerful supers, 3v3 Gem Rush and Solo Showdown against bots.</p><div class="stats" id="bstats"></div><div class="tags"><span class="tag">Arena</span><span class="tag">11 fighters</span><span class="tag">vs Bots</span></div><span class="play">Battle now →</span></div>
+    </a>
+    <a class='card' href='games/crewarcade/?g=pong'><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/austin-pong.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Austin Pong</h2><p>Austin is the ball! Haider vs Zach — beat the bot on Easy, Medium or Hard, or play a friend. First to 5.</p><div class="tags"><span class="tag">NEW</span><span class="tag">vs Bot</span><span class="tag">2 Player</span></div><span class="play">Play now →</span></div></a>
+    <a class='card pink' href='games/crewarcade/?g=ttt'><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/tic-tac-zach.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Tic-Tac-Zach</h2><p>Samuel vs Zach noughts and crosses. Easy is random, Hard is unbeatable. Build a win streak for the leaderboard.</p><div class="tags"><span class="tag">NEW</span><span class="tag">Board game</span><span class="tag">2 Player</span></div><span class="play">Play now →</span></div></a>
+    <a class='card sky' href='games/crewarcade/?g=memory'><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/crew-memory.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Crew Memory</h2><p>Flip and match pairs of the whole crew. Race the clock solo, play a friend, or out-remember Zach the bot.</p><div class="tags"><span class="tag">NEW</span><span class="tag">Memory</span><span class="tag">vs Bot</span></div><span class="play">Play now →</span></div></a>
+    <a class='card' href='games/crewarcade/?g=draw'><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/quick-draw-joe.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Quick Draw Joe</h2><p>Wait for Joe to pop up, then fire first! Twitchy fingers lose the round. Beat Zach's reactions or duel a friend.</p><div class="tags"><span class="tag">NEW</span><span class="tag">Reflex</span><span class="tag">2 Player</span></div><span class="play">Play now →</span></div></a>
+    <a class='card sky' href='games/crewarcade/?g=simon'><div class="art" style="padding:0;overflow:hidden"><img src="games/amaan/amaan.jpg" alt="" style="width:48px;height:48px;border-radius:50%;border:3px solid #ff4fa3"><img src="games/stackjosh/josh.png" alt="" style="width:48px;height:48px;border-radius:50%;border:3px solid #ff9e40"><img src="games/snariyan/ariyan.png" alt="" style="width:48px;height:48px;border-radius:50%;border:3px solid #3ddc84"></div><div class="body"><h2>Christian Says</h2><p>Watch the crew light up, then repeat the pattern. Hard mode shuffles the faces every round. How many rounds can you survive?</p><div class="tags"><span class="tag">NEW</span><span class="tag">Memory</span><span class="tag">High score</span></div><span class="play">Play now →</span></div></a>
+    <a class='card pink' href='games/crewarcade/?g=dodge'><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/dodge-a-joe.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Dodge a Joe</h2><p>Charlie runs for his life while Joes rain from the sky. Grab Amaans for bonus points. One life on Hard!</p><div class="tags"><span class="tag">NEW</span><span class="tag">Arcade</span><span class="tag">Survival</span></div><span class="play">Play now →</span></div></a>
+    <a class='card' href='play.html?game=flappy'>
+      <div class="art" style="padding:0;overflow:hidden"><img src="thumbs/flappy-haider.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Flappy Haider</h2>
+        <p>Tap, flap and squeeze through the pipes. Powerups, skins, daily challenges and a share-your-score card — plus the new 🏀 <strong>Dunky Haider</strong> mode: Flappy Dunk, but the basketball is Haider.</p>
+        <div class="stats" id="fstats"></div>
+        <div class="tags"><span class="tag">Arcade</span><span class="tag">Reflex</span><span class="tag">High score</span></div>
+        <span class="play">Play now →</span>
+      </div>
+    </a>
+
+    <a class='card pink' href='play.html?game=amaan'>
+      <div class="art" style="padding:0;overflow:hidden"><img src="thumbs/amaan-clicker.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Amaan Clicker</h2>
+        <p>The full idle empire: upgrades, buildings, rebirths, prestige, pets, chat and a global leaderboard.</p>
+        <div class="stats" id="astats"></div>
+        <div class="tags"><span class="tag">Idle</span><span class="tag">Clicker</span><span class="tag">Prestige</span></div>
+        <span class="play">Play now →</span>
+      </div>
+    </a>
+    <a class='card sky' href='play.html?game=paccymatt'>
+      <div class="art" style="padding:0;overflow:hidden"><img src="thumbs/paccymatt.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Paccy Matt</h2>
+        <p>Charlie eats every pellet in a maze while four ghosts chase him. Amaan's pellets turn the ghosts blue for a short time.</p>
+        <div class="stats" id="mstats"></div>
+        <div class="tags"><span class="tag">Arcade</span><span class="tag">Maze</span><span class="tag">Chase</span></div>
+        <span class="play">Play now →</span>
+      </div>
+    </a>
+    <a class='card sky' href='play.html?game=snariyan'>
+      <div class="art" style="padding:0;overflow:hidden"><img src="thumbs/snariyan.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Snariyan</h2>
+        <p>Ariyan is the snake. Eat Amaan to grow longer, and don't hit the walls or your own tail. Or race a friend online in 🌐 Snariyan Race.</p>
+        <div class="stats" id="sstats"></div>
+        <div class="tags"><span class="tag">Arcade</span><span class="tag">Snake</span><span class="tag">🌐 Online race</span></div>
+        <span class="play">Play now →</span>
+      </div>
+    </a>
+    <a class='card sky' href='play.html?game=christian'>
+      <div class="art" style="padding:0;overflow:hidden"><img src="thumbs/like-a-christian.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Like a Christian</h2>
+        <p>Bars drop in time with the song. Slide Christian under each one and his neck grows and grows — and every time the tune loops it plays faster.</p>
+        <div class="stats" id="cstats"></div>
+        <div class="tags"><span class="tag">Arcade</span><span class="tag">Rhythm</span><span class="tag">One finger</span></div>
+        <span class="play">Play now →</span>
+      </div>
+    </a>
+    <a class='card sky' href='play.html?game=stackjosh'>
+      <div class="art" style="padding:0;overflow:hidden"><img src="thumbs/stack-a-josh.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Stack a Josh</h2>
+        <p>The tile is Josh. Drop each sliding Josh onto the tower and build him as high as you can — perfect drops build streaks and grow the tower back. Overhangs get sliced off. Compete on the 🏆 global leaderboard, or play 🌐 Stack Duel online with 2–4 friends.</p>
+        <div class="stats" id="jstats"></div>
+        <div class="tags"><span class="tag">Arcade</span><span class="tag">Tower</span><span class="tag">🌐 Online 2–4</span></div>
+        <span class="play">Play now →</span>
+      </div>
+    </a>
+    <a class='card sky' href='play.html?game=angryhaider'>
+      <div class="art" style="padding:0;overflow:hidden"><img src="thumbs/angry-haider.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Angry Haider</h2>
+        <p>Zach and Austin are hogging the forts! Pull back the slingshot and fling Haider and Zainab through glass, wood and stone. Tap a flying Haider to SLAM down, tap Zainab to DASH forward. Three forts, one campaign.</p>
+        <div class="stats" id="hstats"></div>
+        <div class="tags"><span class="tag">Physics</span><span class="tag">Slingshot</span><span class="tag">Campaign</span></div>
+        <span class="play">Play now →</span>
+      </div>
+    </a>
+    <a class='card sky' href='play.html?game=kickaustin'>
+      <div class="art" style="background:linear-gradient(180deg,#ffe0b2 0%,#ffb74d 70%,#8d6e63 70%);display:flex;align-items:center;justify-content:center;gap:10px">
+        <img src="games/kickaustin/austin.png" alt="" style="width:64px;height:64px;border-radius:50%;border:3px solid #fff;box-shadow:0 6px 16px rgba(0,0,0,.4);transform:rotate(-10deg)">
+        <span style="font-size:34px">⚽🥧🎉</span>
+      </div>
+      <div class="body">
+        <h2>Kick the Austin</h2>
+        <p>Austin is a squishy rubber toy who loves being bounced around! Fling him off the walls, tickle him, bop him with balls, ducks and pies, and earn coins to unlock sillier toys.</p>
+        <div class="tags"><span class="tag">Kid friendly</span><span class="tag">Sandbox</span><span class="tag">Physics</span></div>
+        <span class="play">Play now →</span>
+      </div>
+    </a>
+    <a class='card sky' href='play.html?game=connectsamuel'>
+      <div class="art" style="padding:0;overflow:hidden"><img src="thumbs/connect-samuel.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Connect Samuel</h2>
+        <p>Connect 4, but every disc is Samuel! Line up four Samuels in a row to win. Play the AI on Easy, Medium or Hard, challenge a friend in 2 player mode, or go 🌐 Online 1v1 with a room code.</p>
+        <div class="tags"><span class="tag">Board game</span><span class="tag">Vs AI</span><span class="tag">🌐 Online 1v1</span></div>
+        <span class="play">Play now →</span>
+      </div>
+    </a>
+    <a class='card sky' href='play.html?game=wackjoe'>
+      <div class="art" style="padding:0;overflow:hidden"><img src="thumbs/wack-a-joe.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Wack a Joe</h2>
+        <p>Whack-a-mole, but every mole is Joe! Catch him popping out of nine holes before the clock runs out.</p>
+        <div class="stats" id="wstats"></div>
+        <div class="tags"><span class="tag">Arcade</span><span class="tag">Reflex</span><span class="tag">High score</span></div>
+        <span class="play">Play now →</span>
+      </div>
+    </a>
+<a class="card sky" href="play.html?game=haiderkart"><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/haider-kart.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Haider Kart</h2><p>Haider and the crew race three laps. Grab turbo stars, dodge rival karts and chase your best time.</p><div class="stats" id="haiderkart-stats"></div><div class="tags"><span class="tag">Racing</span><span class="tag">Turbo</span><span class="tag">vs Bots</span></div><span class="play">Race now →</span></div></a>
+<a class="card sky" href="https://kingstowerdefence2.netlify.app"><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/kings-tower-defence.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Kings Tower Defence</h2><p>Build towers, upgrade them and hold off every wave.</p><div class="stats" id="amaantd-stats"></div><div class="tags"><span class="tag">Strategy</span><span class="tag">Waves</span><span class="tag">Upgrades</span></div><span class="play">Defend now →</span></div></a>
+<a class="card sky" href="play.html?game=kingstag"><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/kings-tag.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Kings Tag</h2><p>Chase the crew, pass the crown and dash away from the king who is it.</p><div class="stats" id="kingstag-stats"></div><div class="tags"><span class="tag">Arcade</span><span class="tag">Chase</span><span class="tag">Survival</span></div><span class="play">Play now →</span></div></a>
+<a class="card sky" href="games/crewcatch/"><div class="art" style="background:linear-gradient(180deg,#7cc4ff,#2f7cff);display:flex;align-items:center;justify-content:center;gap:10px"><img src="games/amaan/amaan.jpg" alt="" style="width:30%;aspect-ratio:1;border-radius:50%;border:4px solid #fff;object-fit:cover"><img src="games/angryhaider/haider.png" alt="" style="width:36%;aspect-ratio:1;border-radius:50%;border:4px solid #fff;object-fit:cover"><img src="games/wackjoe/joe.jpeg" alt="" style="width:30%;aspect-ratio:1;border-radius:50%;border:4px solid #ff3d3d;object-fit:cover"><span style="position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#1f4f8f;color:#ffe14d;font-weight:900;font-size:15px;padding:4px 14px;border-radius:14px;border:3px solid #14213d;white-space:nowrap;z-index:2">NEW!</span></div><div class="body"><h2>Crew Catch</h2><p>Catch the crew as they fall. Miss one and you lose a life. Don't catch Joe!</p><div class="tags"><span class="tag">NEW</span><span class="tag">Arcade</span><span class="tag">Best score</span></div><span class="play">Play now →</span></div></a>
+<a class='card sky' href='games/ariyanrunner/'><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/ariyan-runner.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Ariyan Runner</h2><p>Switch lanes, dodge the Joes and red blocks, and grab the Amaans. How far can Ariyan run?</p><div class="tags"><span class="tag">NEW</span><span class="tag">Endless</span><span class="tag">Reflex</span></div><span class="play">Run now →</span></div></a>
+<a class='card sky' href='games/kingsshootout/'><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/kings-shootout.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Kings Shootout</h2><p>Two random crew teams, five kicks each. Drag back from the ball to aim and let go. Can you beat the keeper?</p><div class="tags"><span class="tag">NEW</span><span class="tag">Sports</span><span class="tag">Vs</span></div><span class="play">Kick off →</span></div></a>
+<a class='card sky' href='games/geometrydash/'><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/geometry-dash.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Geo-Metry Dash</h2><p>Six original levels with cube, ship, wave, ball and UFO modes. Portals switch modes mid-level.</p><div class="tags"><span class="tag">NEW</span><span class="tag">Rhythm</span><span class="tag">Reflex</span></div><span class="play">Jump in →</span></div></a>
+<a class='card pink' href='games/kingsnite/'><div class="art" style="padding:0;overflow:hidden"><svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" role="img" aria-label="Kingsnite: three players on an island inside the closing storm ring" style="display:block">
+  <defs>
+    <linearGradient id="ks-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#170c2e"/><stop offset="1" stop-color="#4a2a80"/></linearGradient>
+    <radialGradient id="ks-glow" cx="50%" cy="50%" r="50%"><stop offset="0.72" stop-color="#b57cff" stop-opacity="0"/><stop offset="1" stop-color="#b57cff" stop-opacity=".6"/></radialGradient>
+    <clipPath id="ks-f1"><circle cx="150" cy="104" r="27"/></clipPath>
+    <clipPath id="ks-f2"><circle cx="252" cy="96" r="27"/></clipPath>
+    <clipPath id="ks-f3"><circle cx="200" cy="158" r="27"/></clipPath>
+  </defs>
+  <rect width="400" height="220" fill="url(#ks-sky)"/>
+  <circle cx="200" cy="112" r="132" fill="url(#ks-glow)"/>
+  <circle cx="200" cy="112" r="100" fill="#f0d890"/>
+  <circle cx="200" cy="112" r="92" fill="#5bbf4a"/>
+  <circle cx="200" cy="112" r="92" fill="none" stroke="#b57cff" stroke-width="7"/>
+  <g stroke="#fff6dc" stroke-width="4" fill="#fff6dc">
+    <circle cx="150" cy="104" r="31" fill="none"/>
+    <circle cx="252" cy="96" r="31" fill="none"/>
+    <circle cx="200" cy="158" r="31" fill="none"/>
+  </g>
+  <image href="games/amaan/amaan.jpg" x="123" y="77" width="54" height="54" clip-path="url(#ks-f1)" preserveAspectRatio="xMidYMid slice"/>
+  <image href="games/geometrydash/dhyiaan.jpg" x="225" y="69" width="54" height="54" clip-path="url(#ks-f2)" preserveAspectRatio="xMidYMid slice"/>
+  <image href="games/geometrydash/bartu.jpg" x="173" y="131" width="54" height="54" clip-path="url(#ks-f3)" preserveAspectRatio="xMidYMid slice"/>
+  <text x="200" y="208" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="900" font-size="15" fill="#fff6dc" letter-spacing="1">10 PLAYERS · 1 ISLAND</text>
+</svg></div><div class="body"><h2>Kingsnite</h2><p>Ten players on one island, one winner. Loot weapons, heal up, and outlast the shrinking storm and the nine bots.</p><div class="tags"><span class="tag">NEW</span><span class="tag">3D</span><span class="tag">Battle Royale</span></div><span class="play">Drop in →</span></div></a>
+<a class='card sky' href='games/snookamaan/'><div class="art" style="padding:0;overflow:hidden"><svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" role="img" aria-label="Snookamaan: a snooker table with the white ball, a black ball and red balls carrying the players' faces" style="display:block">
+  <defs>
+    <clipPath id="sn-c"><circle cx="0" cy="0" r="1"/></clipPath>
+  </defs>
+  <rect width="400" height="220" fill="#0b1a14"/>
+  <rect x="36" y="34" width="328" height="152" rx="22" fill="#5a3320"/>
+  <rect x="50" y="48" width="300" height="124" rx="6" fill="#0a402b"/>
+  <rect x="58" y="56" width="284" height="108" fill="#0f5a3c"/>
+  <g fill="#050805" stroke="#e0ad4a" stroke-width="2.5">
+    <circle cx="58" cy="56" r="10"/><circle cx="200" cy="52" r="9"/><circle cx="342" cy="56" r="10"/>
+    <circle cx="58" cy="164" r="10"/><circle cx="200" cy="168" r="9"/><circle cx="342" cy="164" r="10"/>
+  </g>
+  <circle cx="120" cy="110" r="14" fill="#fffdf5"/>
+  <clipPath id="sn-w"><circle cx="120" cy="110" r="11"/></clipPath>
+  <image href="games/snookamaan/amaan.jpg" x="109" y="99" width="22" height="22" clip-path="url(#sn-w)" preserveAspectRatio="xMidYMid slice"/>
+  <circle cx="290" cy="110" r="14" fill="#161616" stroke="#bbb" stroke-width="2"/>
+  <clipPath id="sn-b"><circle cx="290" cy="110" r="11"/></clipPath>
+  <image href="games/snookamaan/haider.png" x="279" y="99" width="22" height="22" clip-path="url(#sn-b)" preserveAspectRatio="xMidYMid slice"/>
+  <circle cx="220" cy="92" r="14" fill="#d8342c" stroke="#ffb3a8" stroke-width="2"/>
+  <clipPath id="sn-r1"><circle cx="220" cy="92" r="11"/></clipPath>
+  <image href="games/snookamaan/ariyan.png" x="209" y="81" width="22" height="22" clip-path="url(#sn-r1)" preserveAspectRatio="xMidYMid slice"/>
+  <circle cx="232" cy="130" r="14" fill="#d8342c" stroke="#ffb3a8" stroke-width="2"/>
+  <clipPath id="sn-r2"><circle cx="232" cy="130" r="11"/></clipPath>
+  <image href="games/snookamaan/dhyiaan.jpg" x="221" y="119" width="22" height="22" clip-path="url(#sn-r2)" preserveAspectRatio="xMidYMid slice"/>
+  <circle cx="254" cy="110" r="14" fill="#d8342c" stroke="#ffb3a8" stroke-width="2"/>
+  <clipPath id="sn-r3"><circle cx="254" cy="110" r="11"/></clipPath>
+  <image href="games/snookamaan/ben.jpeg" x="243" y="99" width="22" height="22" clip-path="url(#sn-r3)" preserveAspectRatio="xMidYMid slice"/>
+  <line x1="136" y1="110" x2="58" y2="110" stroke="#c8956a" stroke-width="5" stroke-linecap="round" opacity=".9"/>
+  <text x="200" y="202" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="15" fill="#f6eedb">Pot the reds · 3 players</text>
+</svg></div><div class="body"><h2>Snookamaan</h2><p>Snooker with the crew. Play solo, or start a party and play a friend online with a code. Amaan is the white, Haider is the black, and Ariyan, Dhyiaan and Ben are the reds.</p><div class="tags"><span class="tag">NEW</span><span class="tag">Snooker</span><span class="tag">Solo</span><span class="tag">Party</span></div><span class="play">Rack 'em up →</span></div></a>
+  <a class="card sky" href="games/speedrundash/"><div class="art" style="background:linear-gradient(180deg,#15224a,#0b1020);display:flex;align-items:center;justify-content:center;gap:10px;position:relative"><img src="games/snariyan/ariyan.png" alt="" style="width:30%;aspect-ratio:1;border-radius:50%;border:4px solid #ffb347;object-fit:cover"><span style="font-size:34px">🏁</span><span style="position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#1f4f8f;color:#ffe14d;font-weight:900;font-size:15px;padding:4px 14px;border-radius:14px;border:3px solid #14213d;white-space:nowrap;z-index:2">NEW!</span></div><div class="body"><h2>Speedrun Dash</h2><p>Race the clock through three lanes. Dodge Austin, grab Amaan coins and pass Christian's checkpoints. Beat Bartu's time for Gold.</p><div class="tags"><span class="tag">NEW</span><span class="tag">Racing</span><span class="tag">Best time</span></div><span class="play">Race now →</span></div></a>
+  <a class="card sky" href="games/subwaygeorges/"><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/subway-georges.jpg" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Subway Georges</h2><p>Run as George, dodge Bartu trains and Christian, escape Haider and Zainab, and collect Amaan face-coins.</p><div class="tags"><span class="tag">Runner</span><span class="tag">Endless</span></div><span class="play">Play now →</span></div></a><a class="card sky" href="games/football5v5/"><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/football-5v5.jpg" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body"><h2>Hub Football 5v5</h2><p>Five-a-side on a 3D pitch with the crew. Run, dribble, tackle, pass and shoot against AI or a friend.</p><div class="tags"><span class="tag">Sport</span><span class="tag">5v5</span></div><span class="play">Play now →</span></div></a>
+  <a class="card sky" href="play.html?game=smashyhaider"><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/smashy-haider.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Smashy Haider</h2><p>Smash the city before the army smashes you. Knock down buildings for cash, fill the rampage meter, and go indestructible.</p><div class="tags"><span class="tag">NEW</span><span class="tag">Action</span><span class="tag">Best score</span></div><span class="play">Play now →</span></div></a>
+  <a class="card sky" href="play.html?game=chesscrew"><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/chess-crew.jpg" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Chess Crew</h2><p>Chess with the crew: Haider is the King, Amaan the Queen, and everyone has a piece. Easy to Impossible AI, 2 player, or a party code to play a friend online.</p><div class="tags"><span class="tag">NEW</span><span class="tag">Strategy</span><span class="tag">Party</span></div><span class="play">Play now →</span></div></a>
+  <a class="card sky" href="play.html?game=clashroyal3d"><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/clash-royal-3d.jpg" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Clash Royal 3D</h2><p>Place your crew on a 3D lane, destroy the enemy king, and climb the arenas. Play the computer or a friend 1v1 with a party code.</p><div class="tags"><span class="tag">NEW</span><span class="tag">3D</span><span class="tag">Trophies</span></div><span class="play">Play now →</span></div></a>
+  <a class="card sky" href="play.html?game=crossyhaider"><div class="art" style="padding:0;overflow:hidden"><img src="thumbs/crossy-haider.jpg" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"></div><div class="body">
+        <h2>Crossy Haider</h2><p>Hop Haider across the roads, rails and lily pads. Dodge Amaan's cars and Bartu's trains, and don't get squished!</p><div class="tags"><span class="tag">NEW</span><span class="tag">3D</span><span class="tag">Arcade</span></div><span class="play">Play now →</span></div></a>
+  </main>
+</div>
+
+<footer>The Game Hub · every game runs complete and unchanged inside the hub.</footer>
+
+<script src="js/hub-core.js"></script>
+<script>window.HUB_AI={endpoint:'/.netlify/functions/ask'};</script>
+<script>window.HUB_AI = { endpoint: '/.netlify/functions/ask' };</script>
+<script src="js/assistant.js"></script>
+<script>
+  /* ---- service worker ---- */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+  }
+
+  /* ---- install prompt ---- */
+  var deferred = null, ibtn = document.getElementById('install');
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; ibtn.style.display = 'block'; });
+  ibtn.addEventListener('click', function () {
+    if (!deferred) return;
+    deferred.prompt();
+    deferred.userChoice.then(function () { deferred = null; ibtn.style.display = 'none'; });
+  });
+  window.addEventListener('appinstalled', function () { ibtn.style.display = 'none'; });
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (isIOS && !standalone) { ibtn.textContent = '📲 Install: tap Share, then “Add to Home Screen”'; ibtn.style.display = 'block'; }
+
+  /* ---- offline banner ---- */
+  var ob = document.getElementById('offline');
+  function netState() { ob.classList.toggle('on', !navigator.onLine); }
+  window.addEventListener('online', netState);
+  window.addEventListener('offline', netState);
+  netState();
+
+  /* ---- shared profile ---- */
+  function fmt(n) {
+    n = Number(n) || 0;
+    var S = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc'], i = 0;
+    if (n < 1000) return String(Math.floor(n));
+    while (n >= 1000 && i < S.length - 1) { n /= 1000; i++; }
+    return n.toFixed(n < 10 ? 2 : n < 100 ? 1 : 0) + S[i];
+  }
+  var nameInput = document.getElementById('pnameInput');
+  document.getElementById('pnameSave').onclick = function () {
+    var n = HubCore.setName(nameInput.value);
+    nameInput.value = n;
+    paint();
+  };
+
+  function paintToggles() {
+    var s = document.getElementById('togSound'), h = document.getElementById('togHaptic');
+    s.classList.toggle('off', !HubCore.soundOn());
+    s.textContent = HubCore.soundOn() ? '🔊 Sound on' : '🔇 Sound off';
+    if (!HubCore.canVibrate()) { h.style.display = 'none'; return; }
+    h.classList.toggle('off', !HubCore.hapticsOn());
+    h.textContent = HubCore.hapticsOn() ? '📳 Haptics on' : '📴 Haptics off';
+  }
+  document.getElementById('togSound').onclick = function () { HubCore.setSound(!HubCore.soundOn()); paintToggles(); };
+  document.getElementById('togHaptic').onclick = function () { HubCore.setHaptics(!HubCore.hapticsOn()); paintToggles(); };
+
+  function paint() {
+    var p = HubCore.profile();
+    if (document.activeElement !== nameInput) nameInput.value = p.name;
+    document.getElementById('plevel').textContent = 'Lv ' + p.level;
+    document.getElementById('pxpbar').style.width = Math.min(100, p.intoLevel / p.levelSpan * 100) + '%';
+    document.getElementById('pxptext').textContent =
+      fmt(p.xp) + ' XP total · ' + fmt(p.levelSpan - p.intoLevel) + ' XP to level ' + (p.level + 1) +
+      ' · shared across every game';
+
+    document.getElementById('fstats').innerHTML =
+      'Best <b>' + p.flappy.best + '</b>' + ' · XP <b>' + fmt(p.flappy.xp) + '</b>' + ' · Coins <b>' + fmt(p.flappy.coins) + '</b>';
+    document.getElementById('cstats').innerHTML = p.christian.started
+      ? 'Best <b>' + p.christian.best + '</b> · Perfects <b>' + fmt(p.christian.perfects) + '</b> · XP <b>' + fmt(p.christian.xp) + '</b>'
+      : 'Not played yet — drag, catch, keep the beat.';
+    document.getElementById('astats').innerHTML = p.amaan.started
+      ? 'All-time <b>' + fmt(p.amaan.all) + '</b> · Stars <b>' + fmt(p.amaan.stars) + '</b> · Halos <b>' + p.amaan.halos + '</b>'
+      : 'Not started yet';
+    document.getElementById('sstats').innerHTML = p.snariyan.started
+      ? 'Best <b>' + p.snariyan.best + '</b> · XP <b>' + fmt(p.snariyan.xp) + '</b>'
+      : 'Not played yet';
+    document.getElementById('mstats').innerHTML = p.paccymatt.started
+      ? 'Best <b>' + p.paccymatt.best + '</b> · Ghosts <b>' + fmt(p.paccymatt.ghosts) + '</b> · XP <b>' + fmt(p.paccymatt.xp) + '</b>'
+      : 'Not played yet';
+    document.getElementById('jstats').innerHTML = p.stackjosh.started
+      ? 'Best <b>' + p.stackjosh.best + '</b> · Perfects <b>' + fmt(p.stackjosh.perfects) + '</b> · XP <b>' + fmt(p.stackjosh.xp) + '</b>'
+      : 'Not played yet';
+    document.getElementById('hstats').innerHTML = p.angryhaider.started
+      ? 'Best <b>' + fmt(p.angryhaider.best) + '</b> · Fort <b>' + Math.min(3, Math.max(1, p.angryhaider.fort)) + '/3</b> · XP <b>' + fmt(p.angryhaider.xp) + '</b>'
+      : 'Not played yet — pull, fling, smash.';
+
+    document.getElementById('wstats').textContent = 'Best ' + p.wackjoe.best + ' · XP ' + fmt(p.wackjoe.xp);
+    document.getElementById('bstats').textContent = 'Wins ' + p.brawlkings.wins + ' · XP ' + fmt(p.brawlkings.xp);
+
+    ['haiderkart','amaantd','kingstag'].forEach(function(k){var v=p[k];document.getElementById(k+'-stats').textContent=(v.started?'Best '+(k==='haiderkart'?v.best.toFixed(1)+'s':v.best)+' · XP '+fmt(v.xp):'Not played yet')});
+    /* continue playing — whatever game you had open last */
+    var box = document.getElementById('continue');
+    var GAMES = {
+      haiderkart:{icon:'🏎️',name:'Haider Kart',sub:function(){return fmt(p.haiderkart.xp)+' XP'}},
+      amaantd:{icon:'🛡️',name:'Kings Tower Defence',sub:function(){return 'Best wave '+p.amaantd.best}},
+      kingstag:{icon:'👑',name:'Kings Tag',sub:function(){return 'Best '+p.kingstag.best+' tags'}},
+      brawlkings: { icon: '👑', name: 'Brawl Kings', sub: function () { return p.brawlkings.wins + ' wins · ' + fmt(p.brawlkings.xp) + ' XP'; } },
+      wackjoe: { icon: '🔨', name: 'Wack a Joe', sub: function () { return 'Best ' + p.wackjoe.best + ' · ' + fmt(p.wackjoe.xp) + ' XP'; } },
+      flappy:    { icon: '🐤', name: 'Flappy Haider',    sub: function () { return 'Best ' + p.flappy.best + ' · ' + fmt(p.flappy.xp) + ' XP'; } },
+      amaan:     { icon: '👅', name: 'Amaan Clicker',    sub: function () { return fmt(p.amaan.all) + ' amaans all-time'; } },
+      christian: { icon: '🧱', name: 'Like a Christian', sub: function () { return p.christian.started ? 'Best tower ' + p.christian.best : 'Never played — yet'; } },
+      snariyan:  { icon: '🐍', name: 'Snariyan',         sub: function () { return p.snariyan.started ? 'Best ' + p.snariyan.best + ' Amaans' : 'Never played — yet'; } },
+      paccymatt: { icon: '🟡', name: 'paccymatt',        sub: function () { return p.paccymatt.started ? 'Best ' + p.paccymatt.best : 'Never played — yet'; } },
+      stackjosh: { icon: '📚', name: 'Stack a Josh',     sub: function () { return p.stackjosh.started ? 'Best tower ' + p.stackjosh.best : 'Never played — yet'; } },
+      angryhaider: { icon: '💢', name: 'Angry Haider',    sub: function () { return p.angryhaider.started ? 'Fort ' + Math.min(3, Math.max(1, p.angryhaider.fort)) + '/3 · Best ' + fmt(p.angryhaider.best) : 'Never played — yet'; } }
+    };
+    if (p.last && GAMES[p.last]) {
+      box.hidden = false;
+      var g = GAMES[p.last];
+      document.getElementById('cicon').textContent = g.icon;
+      document.getElementById('ctitle').textContent = g.name;
+      var mins = Math.floor((Date.now() - p.lastAt) / 60000);
+      var ago = !p.lastAt ? '' : mins < 1 ? 'just now' : mins < 60 ? mins + ' min ago' :
+        mins < 1440 ? Math.floor(mins / 60) + 'h ago' : Math.floor(mins / 1440) + 'd ago';
+      document.getElementById('csub').textContent = g.sub() + (ago ? ' · last played ' + ago : '');
+      document.getElementById('cresume').href = 'play.html?game=' + p.last;
+    } else {
+      box.hidden = true;
+    }
+
+    var chips = [];
+    chips.push(p.flappy.dailyDone
+      ? '<span class="chip done"><i class="dot"></i>Flappy daily challenge done</span>'
+      : '<span class="chip ready"><i class="dot"></i>Flappy daily challenge ready</span>');
+    chips.push(p.amaan.dailyReady
+      ? '<span class="chip ready"><i class="dot"></i>Amaan daily login reward ready</span>'
+      : '<span class="chip done"><i class="dot"></i>Amaan login streak claimed</span>');
+    chips.push(p.amaan.questsLeft > 0
+      ? '<span class="chip ready"><i class="dot"></i>' + p.amaan.questsLeft + ' daily quest' + (p.amaan.questsLeft > 1 ? 's' : '') + ' left</span>'
+      : '<span class="chip done"><i class="dot"></i>All daily quests claimed</span>');
+    document.getElementById('cchips').innerHTML = chips.join('');
+
+    HubCore.updateBadge();
+  }
+
+  paintToggles();
+  paint();
+  setInterval(paint, 5000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) paint(); });
+</script>
+<div id="tour" style="position:fixed;inset:0;background:rgba(10,16,34,.6);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:24px;padding:22px;max-width:360px;color:#14213d;box-shadow:0 20px 50px rgba(0,0,0,.3)">
+    <h2 style="font-weight:900;font-size:22px;margin-bottom:10px">Welcome to The Game Hub 🎮</h2>
+    <ol style="padding-left:20px;line-height:1.6;font-size:15px">
+      <li>Pick a game and tap <b>Play now</b>.</li>
+      <li>Your name, level and XP are shared by every game.</li>
+      <li>Use the ⚙️ button for your profile, sound and haptics.</li>
+      <li>Check the daily challenges on the home screen.</li>
+    </ol>
+    <button id="tourOk" style="margin-top:14px;width:100%;border:0;border-radius:14px;padding:14px;font-weight:900;font-size:16px;background:#2f7cff;color:#fff;cursor:pointer">Got it</button>
+  </div>
+</div>
+<script>
+  (function () {
+    var KEY = 'gamehub-tour-v1';
+    var t = document.getElementById('tour');
+    var seen = false; try { seen = !!localStorage.getItem(KEY); } catch (e) {}
+    if (!seen) t.style.display = 'flex';
+    document.getElementById('tourOk').onclick = function () {
+      t.style.display = 'none';
+      try { localStorage.setItem(KEY, '1'); } catch (e) {}
+    };
+  })();
+</script>
+<script src="js/supa-config.js"></script>
+<script src="js/supabase.bundle.js"></script>
+<script src="js/chat.js"></script>
+<script>(function(){try{var n=document.querySelectorAll('.grid a.card').length;var b=document.getElementById('gameCount');if(b&&n)b.textContent=n+' games \u00b7 One place';}catch(e){}})();</script>
+</body>
+</html>

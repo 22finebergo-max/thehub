@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="../../js/sound-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2f7cff">
+<title>Crew Catch</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--blue:#2f7cff;--ink:#14213d;--muted:#6b7a99;--card:#ffffff;--bg:#eef4ff}
+  html,body{height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+
+  canvas{position:fixed;inset:0;display:block;width:100vw;height:100vh}
+
+  #hud{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 10px;z-index:2;pointer-events:none}
+  .pill{background:rgba(255,255,255,.92);border-radius:999px;padding:8px 14px;font-weight:800;font-size:15px;color:var(--ink);box-shadow:0 4px 14px rgba(20,33,61,.15)}
+  #lives{font-size:16px;letter-spacing:2px}
+
+  #over{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(20,33,61,.35);z-index:3}
+  #over.on{display:flex}
+  .sheet{background:var(--card);border-radius:28px;padding:26px 22px 22px;width:min(380px,100%);text-align:center;box-shadow:0 20px 50px rgba(20,33,61,.25)}
+  .icon{width:120px;height:120px;margin:0 auto 14px;border-radius:28px;background:linear-gradient(145deg,#ffd24a,#ff8a3d);display:flex;align-items:center;justify-content:center;font-size:62px;box-shadow:0 10px 24px rgba(255,138,61,.35)}
+  .sheet h1{font-size:30px;font-weight:900;letter-spacing:-.5px}
+  .sheet .sub{color:var(--muted);font-size:15px;line-height:1.45;margin:8px 0 18px}
+  .stats{display:flex;justify-content:space-around;margin:0 0 20px;padding:12px 0;border-top:1px solid #e6ecf7;border-bottom:1px solid #e6ecf7}
+  .stats div{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  .stats b{display:block;font-size:20px;color:var(--ink);margin-bottom:2px;text-transform:none;letter-spacing:0}
+  #go{width:100%;font:inherit;font-weight:900;font-size:19px;border:0;border-radius:16px;padding:16px;color:#fff;background:var(--blue);box-shadow:0 10px 22px rgba(47,124,255,.35);cursor:pointer}
+  #go:active{transform:scale(.98)}
+
+  #tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;gap:6px;background:rgba(255,255,255,.95);border-radius:24px;padding:8px 10px;box-shadow:0 10px 30px rgba(20,33,61,.18);z-index:2}
+  #tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:72px;padding:6px 10px;border-radius:16px;color:var(--muted);font-size:12px;font-weight:700;text-decoration:none}
+  #tabs a.active{color:var(--blue);background:#e8f1ff}
+  #tabs .ti{font-size:20px;line-height:1}
+</style>
+</head>
+<body>
+<div id="hud">
+  <span class="pill" id="score">Caught 0 · Best 0</span>
+  <span class="pill" id="lives"></span>
+</div>
+<canvas id="c"></canvas>
+
+<div id="over" class="on">
+  <div class="sheet">
+    <div class="icon">🧺</div>
+    <h1 id="otitle">Crew Catch</h1>
+    <p class="sub" id="osub">Catch the crew as they fall. Miss one and you lose a life. Joe is trouble, so don't catch him!</p>
+    <div class="stats">
+      <div>Best<b id="bestStat">0</b></div>
+      <div>Lives<b>3</b></div>
+      <div>Mode<b>Arcade</b></div>
+    </div>
+    <button id="go">Play</button>
+    <div id="lbBox" style="margin-top:10px;text-align:left"></div>
+    <button id="share" style="display:none;width:100%;font:inherit;font-weight:900;font-size:18px;border:0;border-radius:16px;padding:14px;color:#14213d;background:#ffd24a;cursor:pointer;margin-top:10px">📣 Beat my score</button>
+  </div>
+</div>
+
+<nav id="tabs">
+  <a href="#" class="active" id="tabPlay"><span class="ti">🎮</span>Play</a>
+  <a href="../../" id="hubLink"><span class="ti">🏠</span>Hub</a>
+</nav>
+
+<script src="../../js/share-score.js"></script>
+<script src="../../js/leaderboard-games.js"></script>
+<script>
+
+function recordRun(key, best, xp) {
+  try {
+    var n = function (k) { return Number(localStorage.getItem(k)) || 0; };
+    localStorage.setItem(key + 'Plays', n(key + 'Plays') + 1);
+    localStorage.setItem(key + 'XP', n(key + 'XP') + Math.max(0, Math.floor(xp)));
+    if (best > n(key + 'Best')) localStorage.setItem(key + 'Best', String(best));
+  } catch (e) {}
+}
+if (location.hostname.endsWith('itch.io')) document.getElementById('hubLink').href = 'https://biggamehub.itch.io/';
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const overEl = document.getElementById('over');
+const goBtn = document.getElementById('go');
+const scoreEl = document.getElementById('score');
+const livesEl = document.getElementById('lives');
+const bestStat = document.getElementById('bestStat');
+
+const SZ = 56, BW = 120, BH = 22, BASKET_GAP = 74;
+const SRC = {
+  amaan: '../amaan/amaan.jpg',
+  samuel: '../connectsamuel/samuel.png',
+  haider: '../angryhaider/haider.png',
+  zach: '../angryhaider/zach.png',
+  josh: '../stackjosh/josh.png',
+  ariyan: '../snariyan/ariyan.png',
+  charlie: '../paccymatt/charlie.png',
+  austin: '../kickaustin/austin.png',
+  joe: '../wackjoe/joe.jpeg'
+};
+const GOOD = ['amaan', 'samuel', 'haider', 'zach', 'josh', 'ariyan', 'charlie', 'austin'];
+const imgs = {};
+for (const k in SRC) { imgs[k] = new Image(); imgs[k].src = SRC[k]; }
+
+let dpr = 1, state = 'menu', score = 0, lives = 3, items = [], spawnT = 0, bx = 0, last = 0;
+let best = 0;
+try { best = Number(localStorage.getItem('crewcatch-best')) || 0; } catch (e) {}
+const keys = {};
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  cv.width = innerWidth * dpr;
+  cv.height = innerHeight * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  bx = Math.min(Math.max(bx, BW / 2), innerWidth - BW / 2) || innerWidth / 2;
+}
+addEventListener('resize', resize);
+resize();
+
+function setHud() {
+  scoreEl.textContent = 'Caught ' + score + ' · Best ' + best;
+  livesEl.textContent = lives > 0 ? '❤️'.repeat(lives) : '💀';
+  bestStat.textContent = best;
+}
+
+function reset() {
+  score = 0; lives = 3; items = []; spawnT = 0;
+  bx = innerWidth / 2;
+  setHud();
+}
+
+function speed() { return Math.min(420, 120 + score * 6); }
+
+function spawn() {
+  const bad = Math.random() < 0.18;
+  const k = bad ? 'joe' : GOOD[Math.floor(Math.random() * GOOD.length)];
+  items.push({ k: k, bad: bad, x: SZ / 2 + 10 + Math.random() * (innerWidth - SZ - 20), y: -SZ, v: speed() * (0.8 + Math.random() * 0.5) });
+}
+
+function endGame() {
+  state = 'over';
+  recordRun('crewCatch', score, score * 3);
+  HubBoard.submitAndShow('crew_catch', score, document.getElementById('lbBox'));
+  if (score > best) {
+    best = score;
+    try { localStorage.setItem('crewcatch-best', String(best)); } catch (e) {}
+  }
+  setHud();
+  document.getElementById('otitle').textContent = 'Game over';
+  document.getElementById('osub').textContent = 'You caught ' + score + '. Can the crew do better?';
+  goBtn.textContent = 'Play again';
+  var sh = document.getElementById('share'); sh.style.display = 'block'; sh.onclick = function () { HubShare('Crew Catch', 'caught ' + score + ' crew'); };
+  overEl.classList.add('on');
+}
+
+function update(dt) {
+  if (keys['ArrowLeft']) bx -= 500 * dt;
+  if (keys['ArrowRight']) bx += 500 * dt;
+  bx = Math.min(Math.max(bx, BW / 2), innerWidth - BW / 2);
+
+  spawnT -= dt;
+  if (spawnT <= 0) {
+    spawn();
+    spawnT = Math.max(0.35, 0.9 - score * 0.02) * (0.7 + Math.random() * 0.6);
+  }
+
+  const basketY = innerHeight - BASKET_GAP;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    it.y += it.v * dt;
+    const cy = it.y + SZ / 2;
+
+    if (cy >= basketY && cy <= basketY + 40 && Math.abs(it.x - bx) < BW / 2 + SZ / 4) {
+      items.splice(i, 1);
+      if (it.bad) { lives--; } else { score++; }
+      setHud();
+      if (lives <= 0) { endGame(); return; }
+      continue;
+    }
+
+    if (it.y > innerHeight + SZ) {
+      items.splice(i, 1);
+      if (!it.bad) { lives--; setHud(); if (lives <= 0) { endGame(); return; } }
+    }
+  }
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function draw() {
+  const w = innerWidth, h = innerHeight;
+
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#7cc4ff');
+  g.addColorStop(1, '#2f7cff');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.fillStyle = 'rgba(255,255,255,.18)';
+  for (let i = 0; i < 4; i++) {
+    const cx = (i * 113 + 40) % w, cy = 120 + i * 140;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 34, 0, Math.PI * 2);
+    ctx.arc(cx + 30, cy - 10, 26, 0, Math.PI * 2);
+    ctx.arc(cx + 56, cy, 30, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const r = SZ / 2;
+  for (const it of items) {
+    const img = imgs[it.k];
+    ctx.save();
+    ctx.shadowColor = 'rgba(20,33,61,.3)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(it.x, it.y + r, r + 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(it.x, it.y + r, r, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    if (img.complete && img.naturalWidth) {
+      ctx.drawImage(img, it.x - r, it.y, SZ, SZ);
+    } else {
+      ctx.fillStyle = it.bad ? '#ff5a5a' : '#ffd24a';
+      ctx.fillRect(it.x - r, it.y, SZ, SZ);
+    }
+    ctx.restore();
+
+    if (it.bad) {
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#ff3d3d';
+      ctx.beginPath();
+      ctx.arc(it.x, it.y + r, r + 3, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  const by = innerHeight - BASKET_GAP;
+  ctx.save();
+  ctx.shadowColor = 'rgba(20,33,61,.3)';
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 6;
+  ctx.fillStyle = '#ffd24a';
+  roundRect(bx - BW / 2, by, BW, BH, 12);
+  ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = '#ff8a3d';
+  roundRect(bx - BW / 2 + 8, by + BH - 6, BW - 16, 6, 3);
+  ctx.fill();
+}
+
+function frame(t) {
+  const dt = Math.min(0.05, (t - last) / 1000 || 0);
+  last = t;
+  if (state === 'play') update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+goBtn.onclick = function () {
+  document.getElementById('share').style.display = 'none';
+  document.getElementById('lbBox').innerHTML = '';
+  reset();
+  state = 'play';
+  overEl.classList.remove('on');
+};
+
+function pointerMove(e) {
+  if (e.buttons || e.pointerType === 'touch') bx = e.clientX;
+}
+cv.addEventListener('pointerdown', function (e) { bx = e.clientX; });
+cv.addEventListener('pointermove', pointerMove);
+
+addEventListener('keydown', function (e) { keys[e.key] = true; });
+addEventListener('keyup', function (e) { keys[e.key] = false; });
+
+setHud();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

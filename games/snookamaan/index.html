@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b1a14">
+<title>Snookamaan</title>
+<style>
+  :root { --felt: #0f5a3c; --felt-dark: #0a402b; --wood: #5a3320; --chalk: #f6eedb; --brass: #e0ad4a; --ink: #1b1305; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1a14; color: var(--chalk);
+    font-family: Georgia, "Times New Roman", serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #top { position: fixed; left: 0; right: 0; top: 0; padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px 14px;
+    background: linear-gradient(#0b1a14f2 60%, #0b1a1400); pointer-events: none; }
+  #title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  #title { font-size: 22px; font-weight: 700; letter-spacing: .2px; margin: 0; }
+  #score { font-size: 16px; font-variant-numeric: tabular-nums; text-align: right; }
+  #sub-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; margin-top: 4px; }
+  #target { color: #ffe9a8; }
+  #power { font-variant-numeric: tabular-nums; min-width: 80px; text-align: right; }
+  .corner { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); color: var(--chalk); text-decoration: none; font: inherit;
+    font-size: 14px; border: 1px solid #f6eedb66; background: #0b1a14cc; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+  #back { right: 14px; }
+  #help-btn { right: 88px; }
+  .corner:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid #ffe9a8; outline-offset: 2px; }
+  #bottom { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; align-items: center; gap: 12px;
+    padding: 10px 14px calc(env(safe-area-inset-bottom, 0px) + 12px); pointer-events: none; }
+  #msg { background: #0b1a14e6; padding: 8px 14px; border-radius: 12px; font-size: 15px; text-align: center; max-width: 90vw; min-height: 1.2em; }
+  #newFrame { pointer-events: auto; background: var(--brass); color: var(--ink); border: 0; font: inherit; font-size: 15px; font-weight: 700;
+    border-radius: 10px; padding: 10px 14px; cursor: pointer; white-space: nowrap; }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: #0b1a14e6; z-index: 5; padding: 20px; }
+  .overlay.on { display: flex; }
+  .panel { max-width: 440px; width: 100%; text-align: left; max-height: 90vh; overflow: auto; }
+  .panel h2 { font-size: 28px; margin: 0 0 6px; }
+  .panel p { font-size: 16px; line-height: 1.5; margin: 0 0 14px; }
+  .btn { display: block; width: 100%; font: inherit; font-size: 18px; font-weight: 700; border: 0; border-radius: 14px; padding: 14px 18px;
+    background: var(--brass); color: var(--ink); cursor: pointer; margin: 0 0 10px; text-align: center; }
+  .btn.quiet { background: transparent; color: var(--chalk); border: 1px solid #f6eedb66; font-weight: 400; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  label { display: block; font-size: 14px; margin: 10px 0 4px; }
+  input[type=text] { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; padding: 12px; border-radius: 10px; border: 1px solid #f6eedb66;
+    background: #0a1812; color: var(--chalk); text-transform: none; }
+  input#codeIn { text-transform: uppercase; letter-spacing: 4px; text-align: center; }
+  #err { color: #ffb3a8; min-height: 1.2em; font-size: 14px; margin: 8px 0 0; }
+  .code { font-size: 44px; letter-spacing: 10px; text-align: center; font-weight: 700; background: #0a1812; border-radius: 14px;
+    padding: 14px 8px; margin: 8px 0 14px; color: var(--brass); }
+  .help-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f6eedb22; }
+  .help-row img, .help-row span.dot { width: 46px; height: 46px; border-radius: 50%; flex: 0 0 46px; object-fit: cover; }
+  .help-row span.dot { display: block; }
+  .help-row b { display: block; font-size: 16px; }
+  .help-row small { font-size: 14px; opacity: .85; }
+  .section-h { font-size: 13px; letter-spacing: .3px; opacity: .75; margin: 14px 0 4px; }
+
+  /* v91 polish: the start screen was plain serif text floating on the table */
+  html, body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .overlay { background: radial-gradient(circle at 50% 28%, #14543bf5, #06120dfa 78%); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  .panel { text-align: center; background: linear-gradient(180deg, #16301f, #0c1b13); border: 2px solid var(--brass); border-radius: 26px;
+    padding: 24px 20px 14px; box-shadow: 0 8px 0 #06100b, 0 24px 50px #000a; }
+  .panel h2 { font-size: 34px; font-weight: 900; letter-spacing: -.5px; color: #ffe9a8; margin: 0 0 8px; }
+  .panel p { color: #d8ead9; font-size: 15px; }
+  .btn { font-weight: 800; border-radius: 16px; box-shadow: 0 5px 0 #a87a22; transition: transform .08s, box-shadow .08s; }
+  .btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 #a87a22; }
+  .btn.quiet { box-shadow: none; border-width: 2px; font-weight: 700; }
+  .section-h { text-align: center; font-weight: 800; letter-spacing: 1.2px; color: var(--brass); opacity: 1; margin: 18px 0 2px; }
+  label { text-align: left; font-weight: 600; color: #cfe3d2; }
+  input[type=text] { border-width: 2px; border-radius: 12px; margin-bottom: 10px; }
+  .help-row, #helpList { text-align: left; }
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Snooker table. Drag from the white ball to aim, then let go to shoot."></canvas>
+
+<header id="top">
+  <div id="title-row">
+    <h1 id="title">Snookamaan</h1>
+    <div id="score" aria-live="polite"></div>
+  </div>
+  <div id="sub-row">
+    <div id="target"></div>
+    <div id="power"></div>
+  </div>
+</header>
+
+<a id="back" class="corner" href="../../">🏠 Hub</a>
+<button id="help-btn" class="corner" type="button" aria-haspopup="dialog" aria-controls="help">? Help</button>
+
+<footer id="bottom">
+  <div id="msg" role="status" aria-live="polite"></div>
+  <button id="newFrame" type="button">New frame</button>
+</footer>
+
+<!-- start screen: solo, create a party room, or join one with a code -->
+<div id="menu" class="overlay on" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+  <div class="panel">
+    <h2 id="menuTitle">Snookamaan</h2>
+    <p>Pot the reds, then the colours in order. Play alone, or start a party and play someone online.</p>
+    <button id="soloBtn" class="btn" type="button">Play solo</button>
+    <div class="section-h">PARTY (ONLINE, TWO PLAYERS)</div>
+    <label for="nameIn">Your name</label>
+    <input id="nameIn" type="text" maxlength="20" autocomplete="off" placeholder="e.g. Amaan">
+    <button id="createBtn" class="btn" type="button">Create a party</button>
+    <label for="codeIn">Or join with a code</label>
+    <input id="codeIn" type="text" maxlength="4" autocomplete="off" placeholder="ABCD">
+    <button id="joinBtn" class="btn quiet" type="button">Join party</button>
+    <p id="err" role="alert"></p>
+  </div>
+</div>
+
+<!-- shown to the host while waiting for the second player -->
+<div id="waiting" class="overlay" role="dialog" aria-modal="true" aria-labelledby="waitTitle">
+  <div class="panel">
+    <h2 id="waitTitle">Party created</h2>
+    <p>Send this code to the other player. They enter it on the start screen.</p>
+    <div id="roomCode" class="code" aria-label="Room code"></div>
+    <p>Waiting for the other player...</p>
+    <button id="cancelWait" class="btn quiet" type="button">Leave party</button>
+  </div>
+</div>
+
+<!-- help: which ball is which person and what each one is worth -->
+<div id="help" class="overlay" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="panel">
+    <h2 id="helpTitle">Which ball is which</h2>
+    <p>Each ball has a person's face on it. The ring shows what kind of ball it is.</p>
+    <div id="helpList"></div>
+    <button id="helpClose" class="btn" type="button">Close</button>
+  </div>
+</div>
+
+<!-- end of frame -->
+<div id="over" class="overlay" role="dialog" aria-modal="true" aria-labelledby="overTitle">
+  <div class="panel">
+    <h2 id="overTitle">Frame complete</h2>
+    <p id="overText"></p>
+    <button id="overBtn" class="btn" type="button">Play again</button>
+    <button id="overMenu" class="btn quiet" type="button">Back to start</button>
+  </div>
+</div>
+
+<script src="../../js/supa-config.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ---- table (world units; 1000 x 500) ----
+  const TW = 1000, TH = 500, CUSH = 70, R = 16, POCKET_R = 27, TAU = Math.PI * 2;
+  const MAX_SPEED = 1400, FRICTION = 0.6, MIN_SPEED = 4, CUSHION_BOUNCE = 0.72, BALL_REST = 0.94, PULL_MAX = 220;
+  const POCKETS = [
+    [CUSH, CUSH], [500, CUSH - 8], [TW - CUSH, CUSH],
+    [CUSH, TH - CUSH], [500, TH - CUSH + 8], [TW - CUSH, TH - CUSH]
+  ];
+  const BAULK_X = 250, RACK_X = 680, DOT_Y = 250;
+  const FOUL_POINTS = 4;
+
+  const COLOURS = [
+    { id: 'yellow', name: 'Yellow', v: 2, color: '#f2c230', face: 'ariyan',  spot: [BAULK_X, 355] },
+    { id: 'green',  name: 'Green',  v: 3, color: '#2e9e4f', face: 'dhyiaan', spot: [BAULK_X, 145] },
+    { id: 'brown',  name: 'Brown',  v: 4, color: '#8b5a2b', face: 'ben',     spot: [BAULK_X, DOT_Y] },
+    { id: 'blue',   name: 'Blue',   v: 5, color: '#2f6fd6', face: 'ariyan',  spot: [500, DOT_Y] },
+    { id: 'pink',   name: 'Pink',   v: 6, color: '#f08fb4', face: 'dhyiaan', spot: [750, DOT_Y] },
+    { id: 'black',  name: 'Black',  v: 7, color: '#161616', face: 'haider',  spot: [870, DOT_Y] }
+  ];
+  const RED_FACES = ['ariyan', 'dhyiaan', 'ben'];
+  const COLOUR_BY_ID = {};
+  COLOURS.forEach(function (c) { COLOUR_BY_ID[c.id] = c; });
+  const FACE_NAMES = { amaan: 'Amaan', ariyan: 'Ariyan', dhyiaan: 'Dhyiaan', ben: 'Ben', haider: 'Haider' };
+
+  // ---- photos ----
+  const IMG = {};
+  ['amaan', 'ariyan', 'dhyiaan', 'ben', 'haider'].forEach(function (n) {
+    const img = new Image();
+    img.src = n + (n === 'amaan' || n === 'dhyiaan' ? '.jpg' : n === 'ben' ? '.jpeg' : '.png');
+    IMG[n] = img;
+  });
+
+  // ---- DOM ----
+  const $ = function (id) { return document.getElementById(id); };
+  const cv = $('c'), ctx = cv.getContext('2d');
+  const scoreEl = $('score'), targetEl = $('target'), powerEl = $('power'), msgEl = $('msg');
+
+  // ---- layout ----
+  let S = 1, OX = 0, OY = 0, PORTRAIT = false, dpr = 1;
+  function layout() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = innerWidth, H = innerHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    PORTRAIT = H > W;
+    const topPad = 92, botPad = 70, availH = H - topPad - botPad;
+    if (!PORTRAIT) {
+      S = Math.min(W * 0.96 / TW, availH / TH);
+      OX = (W - TW * S) / 2; OY = topPad + (availH - TH * S) / 2;
+    } else {
+      S = Math.min(W * 0.96 / TH, availH / TW);
+      OX = (W - TH * S) / 2; OY = topPad + (availH - TW * S) / 2;
+    }
+  }
+  function P(x, y) { return PORTRAIT ? [OX + y * S, OY + (TW - x) * S] : [OX + x * S, OY + y * S]; }
+  function W2(sx, sy) { return PORTRAIT ? [TW - (sy - OY) / S, (sx - OX) / S] : [(sx - OX) / S, (sy - OY) / S]; }
+
+  // ---- game state ----
+  let mode = 'solo';                 // 'solo' or 'party'
+  let me = 0;                        // my seat in a party: 0 = host, 1 = guest
+  let names = ['Player 1', 'Player 2'];
+  let roomCode = null, roomVersion = 0, pollBusy = false, pollTimer = null;
+  let balls = [], cue = null, inHand = false, aiming = false, aimAt = null, hover = null;
+  let scores = [0, 0], turn = 0, reds = 15, colourNext = 0, shots = 0, fouls = 0, over = false;
+  let pendingShot = false, legal = false, foul = false, lastPre = null, lastVel = null;
+  let replay = null, silent = false;
+  let acc = 0, last = performance.now(), msgTimer = null;
+
+  function makeBall(type, x, y, color, ring, face) {
+    return { type: type, x: x, y: y, vx: 0, vy: 0, color: color, ring: ring, face: face, potted: false };
+  }
+  // ball order is fixed, so both players' tables line up
+  function setup() {
+    balls = [];
+    cue = makeBall('cue', 300, DOT_Y, '#fffdf5', '#2a2a2a', 'amaan');
+    balls.push(cue);
+    let n = 0;
+    for (let row = 0; row < 5; row++) {
+      for (let k = 0; k <= row; k++) {
+        const x = RACK_X + row * R * 1.75, y = DOT_Y + (k - row / 2) * R * 2.04;
+        balls.push(makeBall('red', x, y, '#d8342c', '#ffb3a8', RED_FACES[n % 3]));
+        n++;
+      }
+    }
+    COLOURS.forEach(function (c) {
+      balls.push(makeBall(c.id, c.spot[0], c.spot[1], c.color, c.id === 'black' ? '#bbbbbb' : '#f6eedb', c.face));
+    });
+    scores = [0, 0]; turn = 0; reds = 15; colourNext = 0; shots = 0; fouls = 0; over = false; inHand = false;
+    aiming = false; aimAt = null; hover = null; pendingShot = false; replay = null; silent = false;
+    $('over').classList.remove('on');
+    setMsg(mode === 'party' ? 'Drag from the white ball to aim. Let go to shoot.' : 'Drag from the white ball to aim. Let go to shoot.');
+    updateHud();
+  }
+
+  function setMsg(text) {
+    msgEl.textContent = text;
+    clearTimeout(msgTimer);
+    msgTimer = setTimeout(function () { if (!over && !inHand && !replay) msgEl.textContent = ''; }, 4000);
+  }
+  function activeBalls() { return balls.filter(function (b) { return !b.potted; }); }
+  function moving() { return activeBalls().some(function (b) { return Math.abs(b.vx) + Math.abs(b.vy) > MIN_SPEED; }); }
+  function myTurn() { return mode === 'solo' || turn === me; }
+  function other() { return 1 - turn; }
+
+  function nextTarget() {
+    if (reds > 0) return 'pot a red (+1)';
+    if (colourNext < COLOURS.length) { const c = COLOURS[colourNext]; return 'pot ' + c.name.toLowerCase() + ' (+' + c.v + ')'; }
+    return 'frame complete';
+  }
+  function updateHud() {
+    if (mode === 'party') {
+      scoreEl.textContent = names[0] + ' ' + scores[0] + '  ·  ' + names[1] + ' ' + scores[1];
+      let t;
+      if (over) t = 'Frame complete';
+      else if (replay) t = names[turn] + ' is shooting...';
+      else if (inHand) t = myTurn() ? 'Place the white ball' : names[turn] + ' places the white ball';
+      else t = myTurn() ? 'Your turn: ' + nextTarget() : names[turn] + "'s turn";
+      targetEl.textContent = t;
+    } else {
+      scoreEl.textContent = 'Score ' + scores[0] + ' · ' + reds + ' reds left';
+      targetEl.textContent = inHand ? 'Place the white ball' : nextTarget();
+    }
+  }
+
+  // ---- scoring ----
+  function award(pts) {
+    if (mode === 'party') scores[turn] += pts; else scores[0] += pts;
+  }
+  function penalise() {
+    if (mode === 'party') scores[other()] += FOUL_POINTS;
+    else scores[0] = Math.max(0, scores[0] - FOUL_POINTS);
+  }
+  function respot(b) {
+    const c = COLOUR_BY_ID[b.type];
+    let x = c.spot[0], y = c.spot[1];
+    for (let i = 0; i < 40; i++) {
+      const blocked = activeBalls().some(function (o) { return o !== b && Math.hypot(o.x - x, o.y - y) < R * 2.1; });
+      if (!blocked) break;
+      x += R * 2.2;
+    }
+    b.x = x; b.y = y; b.vx = 0; b.vy = 0; b.potted = false;
+  }
+  function potBall(b) {
+    b.vx = 0; b.vy = 0; b.potted = true;
+    if (silent) return;                      // viewers replay a shot without scoring it
+    if (b.type === 'cue') {
+      foul = true; fouls++; penalise();
+      inHand = true;
+      cue.x = 300; cue.y = DOT_Y; cue.vx = 0; cue.vy = 0;
+      setMsg(mode === 'party'
+        ? 'Cue ball potted: foul. ' + names[other()] + ' gets ' + FOUL_POINTS + ' points and places the white ball.'
+        : 'Cue ball potted: foul, -' + FOUL_POINTS + '. Place the white ball anywhere on the table.');
+      return;
+    }
+    if (b.type === 'red') {
+      legal = true; award(1); reds--;
+      setMsg('Red potted: +1.');
+      return;
+    }
+    const c = COLOUR_BY_ID[b.type];
+    if (reds > 0) {
+      legal = true; award(c.v); respot(b);
+      setMsg(c.name + ' potted: +' + c.v + '. It goes back on its spot.');
+    } else if (c.id === COLOURS[colourNext].id) {
+      legal = true; award(c.v); colourNext++;
+      setMsg(c.name + ' potted: +' + c.v + '.');
+    } else {
+      respot(b);
+      setMsg('Colours go in order. ' + c.name + ' goes back on its spot, no points.');
+    }
+    if (reds === 0 && colourNext >= COLOURS.length) over = true;
+  }
+
+  // ---- physics ----
+  function physics(dt) {
+    const live = activeBalls();
+    for (const b of live) {
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      const k = Math.exp(-FRICTION * dt);
+      b.vx *= k; b.vy *= k;
+      if (Math.abs(b.vx) + Math.abs(b.vy) < MIN_SPEED * 0.25) { b.vx = 0; b.vy = 0; }
+    }
+    for (const b of activeBalls()) {
+      let potted = false;
+      for (const p of POCKETS) {
+        if (Math.hypot(b.x - p[0], b.y - p[1]) < POCKET_R) { potBall(b); potted = true; break; }
+      }
+      if (potted) continue;
+      if (b.x < CUSH + R) { b.x = CUSH + R; b.vx = Math.abs(b.vx) * CUSHION_BOUNCE; }
+      if (b.x > TW - CUSH - R) { b.x = TW - CUSH - R; b.vx = -Math.abs(b.vx) * CUSHION_BOUNCE; }
+      if (b.y < CUSH + R) { b.y = CUSH + R; b.vy = Math.abs(b.vy) * CUSHION_BOUNCE; }
+      if (b.y > TH - CUSH - R) { b.y = TH - CUSH - R; b.vy = -Math.abs(b.vy) * CUSHION_BOUNCE; }
+    }
+    const now = activeBalls();
+    for (let i = 0; i < now.length; i++) {
+      for (let j = i + 1; j < now.length; j++) {
+        const a = now[i], c = now[j];
+        const dx = c.x - a.x, dy = c.y - a.y, d = Math.hypot(dx, dy);
+        if (d >= R * 2 || d === 0) continue;
+        const nx = dx / d, ny = dy / d, overlap = (R * 2 - d) / 2;
+        a.x -= nx * overlap; a.y -= ny * overlap; c.x += nx * overlap; c.y += ny * overlap;
+        const rv = (c.vx - a.vx) * nx + (c.vy - a.vy) * ny;
+        if (rv < 0) {
+          const J = rv * (1 + BALL_REST) / 2;
+          a.vx += J * nx; a.vy += J * ny; c.vx -= J * nx; c.vy -= J * ny;
+        }
+      }
+    }
+  }
+
+  // ---- shots, turns and end of frame ----
+  function shoot(power, dir) {
+    lastPre = snapshot();
+    lastVel = { vx: dir.x * power * MAX_SPEED, vy: dir.y * power * MAX_SPEED };
+    cue.vx = lastVel.vx; cue.vy = lastVel.vy;
+    shots++;
+    pendingShot = true; legal = false; foul = false;
+    updateHud();
+  }
+  function finishShot() {
+    pendingShot = false;
+    if (mode === 'party') {
+      const keepTurn = legal && !foul && !over;
+      if (!keepTurn && !over) turn = other();
+      const last = { by: me, pre: lastPre, vx: lastVel.vx, vy: lastVel.vy };
+      sendState(last);
+    }
+    if (over) endFrame();
+    updateHud();
+  }
+  function endFrame() {
+    over = true;
+    $('overTitle').textContent = 'Frame complete';
+    let text = 'Final score ' + (mode === 'party' ? names[0] + ' ' + scores[0] + ', ' + names[1] + ' ' + scores[1] : scores[0]) +
+      ' in ' + shots + ' shot' + (shots === 1 ? '' : 's') + '.';
+    if (mode === 'party') {
+      if (scores[0] === scores[1]) text += ' It is a draw.';
+      else text += ' ' + (scores[0] > scores[1] ? names[0] : names[1]) + ' wins.';
+    }
+    $('overText').textContent = text;
+    $('over').classList.add('on');
+    updateHud();
+  }
+
+  function snapshot() {
+    return balls.map(function (b) { return { x: +b.x.toFixed(2), y: +b.y.toFixed(2), p: b.potted ? 1 : 0 }; });
+  }
+  function applySnapshot(arr) {
+    arr.forEach(function (v, i) {
+      const b = balls[i];
+      b.x = v.x; b.y = v.y; b.potted = !!v.p; b.vx = 0; b.vy = 0;
+    });
+  }
+  function buildState(lastShot) {
+    return {
+      balls: snapshot(), scores: scores.slice(), turn: turn, inHand: inHand, reds: reds,
+      colourNext: colourNext, over: over, shots: shots, fouls: fouls, last_shot: lastShot || null
+    };
+  }
+  function applyState(st) {
+    if (!st || !st.balls) return;
+    applySnapshot(st.balls);
+    scores = st.scores.slice(); turn = st.turn; inHand = st.inHand; reds = st.reds;
+    colourNext = st.colourNext; over = st.over; shots = st.shots; fouls = st.fouls;
+    if (over) endFrame(); else updateHud();
+  }
+
+  // ---- party: rooms on Supabase ----
+  const SB = (window.HUB_SUPA && window.HUB_SUPA.leaderboard) || null;
+  function sbHeaders(extra) {
+    return Object.assign({ apikey: SB.key, Authorization: 'Bearer ' + SB.key, 'Content-Type': 'application/json' }, extra || {});
+  }
+  async function sbFetch(path, opts) {
+    if (!SB) throw new Error('Online play is not set up on this page.');
+    const o = Object.assign({ headers: sbHeaders() }, opts || {});
+    const r = await fetch(SB.url + '/rest/v1/' + path, o);
+    if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+    const t = await r.text();
+    return t ? JSON.parse(t) : null;
+  }
+  const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  function newCode() {
+    let c = '';
+    for (let i = 0; i < 4; i++) c += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+    return c;
+  }
+  function showErr(text) { $('err').textContent = text; }
+
+  async function createParty(name) {
+    setup();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = newCode();
+      try {
+        const rows = await sbFetch('snook_rooms', {
+          method: 'POST',
+          headers: sbHeaders({ Prefer: 'return=representation' }),
+          body: JSON.stringify({ code: code, host: name, guest: null, version: 1, state: buildState(null) })
+        });
+        me = 0; mode = 'party'; roomCode = code; roomVersion = 1;
+        names = [name, 'Waiting...'];
+        $('roomCode').textContent = code;
+        $('menu').classList.remove('on');
+        $('waiting').classList.add('on');
+        startPolling();
+        return;
+      } catch (e) {
+        if (e.status !== 409) throw e;      // 409 means the code is taken; try another
+      }
+    }
+    throw new Error('Could not find a free code. Try again.');
+  }
+  async function joinParty(code, name) {
+    const rows = await sbFetch('snook_rooms?select=code,host,guest,version,state&code=eq.' + encodeURIComponent(code));
+    const row = rows && rows[0];
+    if (!row) throw new Error('No party with that code.');
+    if (row.guest) throw new Error('That party is already full.');
+    const next = row.version + 1;
+    const patched = await sbFetch('snook_rooms?code=eq.' + encodeURIComponent(code) + '&version=eq.' + row.version, {
+      method: 'PATCH',
+      headers: sbHeaders({ Prefer: 'return=representation' }),
+      body: JSON.stringify({ guest: name, version: next })
+    });
+    if (!patched || !patched.length) throw new Error('Someone else just joined. Try again.');
+    mode = 'party'; me = 1; roomCode = code; roomVersion = next;
+    names = [row.host, name];
+    applyState(row.state);
+    $('menu').classList.remove('on');
+    startPolling();
+  }
+  async function sendState(lastShot) {
+    if (!roomCode) return;
+    const expect = roomVersion;
+    try {
+      const rows = await sbFetch('snook_rooms?code=eq.' + encodeURIComponent(roomCode) + '&version=eq.' + expect, {
+        method: 'PATCH',
+        headers: sbHeaders({ Prefer: 'return=representation' }),
+        body: JSON.stringify({ version: expect + 1, state: buildState(lastShot) })
+      });
+      if (rows && rows.length) roomVersion = expect + 1;
+      else { setMsg('Out of sync. Reloading the table...'); await pollRoom(); }
+    } catch (e) {
+      setMsg('Could not send your move. Check your connection.');
+    }
+  }
+  function startReplay(st) {
+    replay = { final: st };
+    silent = true;
+    applySnapshot(st.last_shot.pre);
+    cue.vx = st.last_shot.vx; cue.vy = st.last_shot.vy;
+    setMsg(names[st.turn === turn ? st.turn : turn] + ' is shooting...');
+    updateHud();
+  }
+  async function pollRoom() {
+    if (!roomCode || pollBusy) return;
+    pollBusy = true;
+    try {
+      const rows = await sbFetch('snook_rooms?select=code,host,guest,version,state&code=eq.' + encodeURIComponent(roomCode));
+      const row = rows && rows[0];
+      if (!row) return;
+      names = [row.host, row.guest || 'Waiting...'];
+      if (me === 0 && row.guest && $('waiting').classList.contains('on')) {
+        $('waiting').classList.remove('on');
+        setMsg(row.guest + ' joined. Your turn to shoot.');
+      }
+      if (row.version > roomVersion) {
+        roomVersion = row.version;
+        const st = row.state;
+        if (st.last_shot && st.last_shot.by !== me && !replay) startReplay(st);
+        else if (!replay) applyState(st);
+        else replay.final = st;
+      }
+      updateHud();
+    } catch (e) { /* keep trying */ }
+    finally { pollBusy = false; }
+  }
+  function startPolling() {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(pollRoom, 1000);
+  }
+
+  // ---- drawing (in screen space, so faces stay upright on phones) ----
+  function rrect(x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
+  }
+  function drawTable() {
+    const [x0, y0] = P(0, 0), [x1, y1] = P(TW, TH);
+    const left = Math.min(x0, x1), top = Math.min(y0, y1), w = Math.abs(x1 - x0), h = Math.abs(y1 - y0);
+    rrect(left, top, w, h, 38 * S); ctx.fillStyle = '#5a3320'; ctx.fill();
+    ctx.lineWidth = Math.max(1, 3 * S); ctx.strokeStyle = '#2d190e'; ctx.stroke();
+    const [cx0, cy0] = P(30, 30), [cx1, cy1] = P(TW - 30, TH - 30);
+    rrect(Math.min(cx0, cx1), Math.min(cy0, cy1), Math.abs(cx1 - cx0), Math.abs(cy1 - cy0), 14 * S);
+    ctx.fillStyle = '#0a402b'; ctx.fill();
+    const [fx0, fy0] = P(CUSH, CUSH), [fx1, fy1] = P(TW - CUSH, TH - CUSH);
+    rrect(Math.min(fx0, fx1), Math.min(fy0, fy1), Math.abs(fx1 - fx0), Math.abs(fy1 - fy0), 4 * S);
+    ctx.fillStyle = '#0f5a3c'; ctx.fill();
+    ctx.strokeStyle = 'rgba(246,238,219,.28)'; ctx.lineWidth = Math.max(1, 2 * S);
+    const [bx, by0] = P(BAULK_X, CUSH), [, by1] = P(BAULK_X, TH - CUSH);
+    ctx.beginPath(); ctx.moveTo(bx, by0); ctx.lineTo(bx, by1); ctx.stroke();
+    const [dx, dy] = P(BAULK_X, DOT_Y);
+    ctx.beginPath();
+    for (let i = 0; i <= 40; i++) {
+      const a = -Math.PI / 2 + Math.PI * i / 40;
+      const px = dx + Math.cos(a) * 80 * S, py = dy + Math.sin(a) * 80 * S;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(246,238,219,.5)';
+    COLOURS.forEach(function (c) {
+      const [sx, sy] = P(c.spot[0], c.spot[1]);
+      ctx.beginPath(); ctx.arc(sx, sy, 3 * S + 1, 0, TAU); ctx.fill();
+    });
+    POCKETS.forEach(function (p) {
+      const [px, py] = P(p[0], p[1]);
+      ctx.beginPath(); ctx.arc(px, py, POCKET_R * S, 0, TAU);
+      ctx.fillStyle = '#050805'; ctx.fill();
+      ctx.lineWidth = Math.max(1, 3 * S); ctx.strokeStyle = '#e0ad4a'; ctx.stroke();
+    });
+  }
+  function drawBall(b) {
+    const [sx, sy] = P(b.x, b.y), r = R * S;
+    ctx.beginPath(); ctx.arc(sx + r * 0.18, sy + r * 0.28, r, 0, TAU);
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU);
+    ctx.fillStyle = b.color; ctx.fill();
+    const img = IMG[b.face];
+    ctx.save();
+    ctx.beginPath(); ctx.arc(sx, sy, r * 0.74, 0, TAU); ctx.clip();
+    if (img && img.complete && img.naturalWidth) {
+      const iw = img.naturalWidth, ih = img.naturalHeight, side = Math.min(iw, ih);
+      ctx.drawImage(img, (iw - side) / 2, (ih - side) / 2, side, side, sx - r * 0.74, sy - r * 0.74, r * 1.48, r * 1.48);
+    } else {
+      ctx.fillStyle = '#f6eedb'; ctx.font = '700 ' + Math.floor(r * 0.9) + 'px Georgia, serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText((FACE_NAMES[b.face] || '?')[0], sx, sy + 1);
+    }
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(sx, sy, r * 0.9, 0, TAU);
+    ctx.lineWidth = Math.max(1.5, r * 0.14); ctx.strokeStyle = b.ring; ctx.stroke();
+    ctx.beginPath(); ctx.arc(sx - r * 0.3, sy - r * 0.35, r * 0.2, 0, TAU);
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fill();
+  }
+  function aimDirection() {
+    if (!aiming || !aimAt) return null;
+    const dx = cue.x - aimAt[0], dy = cue.y - aimAt[1], d = Math.hypot(dx, dy);
+    if (d < 12) return null;
+    return { x: dx / d, y: dy / d };
+  }
+  function drawCueStick() {
+    const dir = aimDirection();
+    if (!dir) return;
+    const pull = Math.min(PULL_MAX, Math.hypot(aimAt[0] - cue.x, aimAt[1] - cue.y));
+    const tipW = cue.x - dir.x * (R + 6 + pull), tipH = cue.y - dir.y * (R + 6 + pull);
+    const butt = [tipW - dir.x * 420, tipH - dir.y * 420];
+    const [tx, ty] = P(tipW, tipH), [bx, by] = P(butt[0], butt[1]);
+    const [gx, gy] = P(cue.x, cue.y), [ex, ey] = P(cue.x + dir.x * 260, cue.y + dir.y * 260);
+    ctx.setLineDash([6 * S + 2, 8 * S + 2]);
+    ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = Math.max(1, 2 * S);
+    ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#c8956a'; ctx.lineWidth = Math.max(3, 9 * S);
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.strokeStyle = '#3a6fd6'; ctx.lineWidth = Math.max(3, 6 * S);
+    const [t2x, t2y] = P(tipW + dir.x * 10, tipH + dir.y * 10);
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(t2x, t2y); ctx.stroke();
+    ctx.lineCap = 'butt';
+    powerEl.textContent = 'Power ' + Math.round(pull / PULL_MAX * 100) + '%';
+  }
+  function canPlace(x, y) {
+    if (x < CUSH + R || x > TW - CUSH - R || y < CUSH + R || y > TH - CUSH - R) return false;
+    return activeBalls().every(function (b) { return b === cue || Math.hypot(b.x - x, b.y - y) >= R * 2.1; });
+  }
+  function render() {
+    const W = innerWidth, H = innerHeight;
+    ctx.fillStyle = '#0b1a14';
+    ctx.fillRect(0, 0, W, H);
+    drawTable();
+    for (const b of activeBalls()) drawBall(b);
+    if (aiming) drawCueStick();
+    if (inHand && myTurn() && hover) {
+      const [hx, hy] = P(hover[0], hover[1]);
+      ctx.globalAlpha = canPlace(hover[0], hover[1]) ? 0.8 : 0.3;
+      ctx.beginPath(); ctx.arc(hx, hy, R * S, 0, TAU);
+      ctx.fillStyle = '#fffdf5'; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = '#2a2a2a'; ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    if (!aiming) powerEl.textContent = '';
+  }
+
+  // ---- input ----
+  function toWorld(e) { return W2(e.clientX, e.clientY); }
+  cv.addEventListener('pointerdown', function (e) {
+    cv.setPointerCapture(e.pointerId);
+    if (over || replay) return;
+    if (!myTurn()) return;
+    const p = toWorld(e), x = p[0], y = p[1];
+    if (inHand) {
+      if (canPlace(x, y)) {
+        cue.x = x; cue.y = y; cue.potted = false; cue.vx = 0; cue.vy = 0;
+        inHand = false; hover = null;
+        setMsg('Drag back from the white ball to aim. Let go to shoot.');
+        if (mode === 'party') sendState(null);   // placing the ball counts as a move
+        updateHud();
+      } else {
+        setMsg('Too close to another ball. Try a clear spot.');
+      }
+      return;
+    }
+    if (moving() || pendingShot) return;
+    aiming = true; aimAt = [x, y];
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (inHand) { hover = toWorld(e); return; }
+    if (aiming) aimAt = toWorld(e);
+  });
+  function endPointer(e) {
+    if (!aiming) return;
+    const dir = aimDirection();
+    aiming = false;
+    if (dir) {
+      const pull = Math.min(PULL_MAX, Math.hypot(cue.x - aimAt[0], cue.y - aimAt[1]));
+      if (pull > 12) shoot(pull / PULL_MAX, dir);
+    }
+    aimAt = null;
+    powerEl.textContent = '';
+  }
+  cv.addEventListener('pointerup', endPointer);
+  cv.addEventListener('pointercancel', function () { aiming = false; aimAt = null; });
+
+  // ---- buttons ----
+  function showHelp() {
+    const list = $('helpList');
+    list.innerHTML = '';
+    function row(faceKey, title, text, ring) {
+      const div = document.createElement('div'); div.className = 'help-row';
+      const img = document.createElement('img'); img.alt = ''; img.src = IMG[faceKey].src;
+      img.style.boxShadow = '0 0 0 3px ' + ring;
+      const txt = document.createElement('div');
+      const b = document.createElement('b'); b.textContent = title;
+      const sm = document.createElement('small'); sm.textContent = text;
+      txt.appendChild(b); txt.appendChild(sm);
+      div.appendChild(img); div.appendChild(txt);
+      list.appendChild(div);
+    }
+    row('amaan', 'White ball · Amaan', 'The cue ball. Potting it is a foul: -' + FOUL_POINTS + ' points.', '#fffdf5');
+    row('haider', 'Black · Haider', '7 points. Pot it last.', '#bbbbbb');
+    row('ariyan', 'Reds · Ariyan, Dhyiaan, Ben', '1 point each. Reds are potted first, 15 in total.', '#d8342c');
+    COLOURS.slice(0, 5).forEach(function (c) {
+      row(c.face, c.name + ' · ' + FACE_NAMES[c.face], c.v + ' points. Potted in order once the reds are gone.', c.color);
+    });
+    $('help').classList.add('on');
+  }
+  $('help-btn').onclick = showHelp;
+  $('helpClose').onclick = function () { $('help').classList.remove('on'); };
+  $('newFrame').onclick = function () {
+    if (mode === 'party') { setMsg('Party frames start from the menu.'); return; }
+    setup();
+  };
+  $('overBtn').onclick = function () {
+    if (mode === 'party') { setMsg('Start a new party from the menu.'); $('over').classList.remove('on'); return; }
+    setup();
+  };
+  $('overMenu').onclick = function () { location.reload(); };
+  $('soloBtn').onclick = function () {
+    mode = 'solo'; me = 0; roomCode = null;
+    clearInterval(pollTimer);
+    setup();
+    $('menu').classList.remove('on');
+  };
+  $('createBtn').onclick = async function () {
+    const name = ($('nameIn').value || '').trim().slice(0, 20);
+    if (!name) { showErr('Enter your name first.'); return; }
+    showErr('');
+    try { await createParty(name); }
+    catch (e) { showErr(e.message || 'Could not create a party. Check your connection.'); }
+  };
+  $('joinBtn').onclick = async function () {
+    const name = ($('nameIn').value || '').trim().slice(0, 20);
+    const code = ($('codeIn').value || '').trim().toUpperCase();
+    if (!name) { showErr('Enter your name first.'); return; }
+    if (code.length !== 4) { showErr('Enter the 4-letter code.'); return; }
+    showErr('');
+    try { await joinParty(code, name); }
+    catch (e) { showErr(e.message || 'Could not join. Check the code and your connection.'); }
+  };
+  $('cancelWait').onclick = function () { location.reload(); };
+  addEventListener('resize', layout);
+  addEventListener('keydown', function (e) { if ((e.key === 'n' || e.key === 'N') && mode === 'solo' && !$('menu').classList.contains('on')) setup(); });
+
+  // ---- loop: fixed-step physics ----
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    acc += dt;
+    let steps = 0;
+    while (acc >= 1 / 240 && steps < 12) { physics(1 / 240); acc -= 1 / 240; steps++; }
+    if (pendingShot && !moving()) finishShot();
+    if (replay && !moving()) {
+      const f = replay.final;
+      replay = null; silent = false;
+      applyState(f);
+    }
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  layout();
+  setup();
+  mode = 'solo';
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="../../js/sound-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2f9e5a">
+<title>Kings Shootout</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--ink:#14213d;--muted:#6b7a99;--blue:#2f7cff;--green:#1fa36b}
+  html,body{height:100%;background:#2f9e5a;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+  canvas{position:fixed;inset:0;display:block;width:100vw;height:100vh}
+  #hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 8px;z-index:2;pointer-events:none}
+  .score{background:rgba(255,255,255,.95);border-radius:16px;padding:8px 12px;font-weight:900;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.2);text-align:center;min-width:110px}
+  .score small{display:block;font-weight:700;color:var(--muted);font-size:12px}
+  #tag{position:fixed;top:calc(env(safe-area-inset-top,0px) + 100px);left:50%;transform:translateX(-50%);background:rgba(20,33,61,.85);color:#fff;font-weight:800;font-size:14px;padding:7px 14px;border-radius:12px;z-index:2;display:none;pointer-events:none;white-space:nowrap}
+  #msg{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-size:46px;font-weight:900;color:#fff;text-shadow:0 4px 0 #14213d,0 8px 18px rgba(0,0,0,.4);z-index:2;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap}
+  #over{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(20,33,61,.45);z-index:3}
+  #over.on{display:flex}
+  .sheet{background:#fff;border-radius:28px;padding:26px 22px 22px;width:min(380px,100%);text-align:center;box-shadow:0 20px 50px rgba(20,33,61,.3)}
+  .icon{font-size:60px;margin-bottom:6px}
+  .sheet h1{font-size:28px;font-weight:900}
+  .sheet .sub{color:var(--muted);font-size:15px;line-height:1.45;margin:8px 0 16px}
+  .btn{display:block;width:100%;font:inherit;font-weight:900;font-size:18px;border:0;border-radius:16px;padding:15px;color:#fff;background:var(--blue);box-shadow:0 8px 20px rgba(47,124,255,.35);cursor:pointer;margin-top:10px}
+  .btn.online{background:var(--green);box-shadow:0 8px 20px rgba(31,163,107,.35)}
+  #tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;gap:6px;background:rgba(255,255,255,.95);border-radius:24px;padding:8px 10px;box-shadow:0 10px 30px rgba(20,33,61,.18);z-index:2}
+  #tabs a{display:flex;flex-direction:column;align-items:center;min-width:72px;padding:6px 10px;border-radius:16px;color:var(--muted);font-size:12px;font-weight:700;text-decoration:none}
+  #tabs a.active{color:var(--blue);background:#e8f1ff}
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="score" id="sA">Team A<small>0</small></div>
+  <div class="score" id="round">Kick 1</div>
+  <div class="score" id="sB">Team B<small>0</small></div>
+</div>
+<div id="tag"></div>
+<div id="msg"></div>
+<canvas id="c"></canvas>
+<div id="over">
+  <div class="sheet">
+    <div class="icon">⚽</div>
+    <h1 id="otitle">Kings Shootout</h1>
+    <p class="sub" id="osub">One side shoots while the other keeps goal, and the roles swap every kick. The keeper picks a side, then the shooter drags back from the ball to aim. The keeper dives as the ball is kicked.</p>
+    <button class="btn" id="go">⚽ Play vs AI</button>
+    <button class="btn" id="goDaily" style="background:#ff8a00;box-shadow:0 8px 20px rgba(255,138,0,.35)">📅 Today's daily match</button>
+    <button class="btn online" id="goOnline">🌐 Online 1v1 (room code)</button>
+    <div id="lbBox" style="margin-top:10px;text-align:left"></div>
+    <button id="share" style="display:none;width:100%;font:inherit;font-weight:900;font-size:18px;border:0;border-radius:16px;padding:14px;color:#14213d;background:#ffd24a;cursor:pointer;margin-top:10px">📣 Beat my score</button>
+  </div>
+</div>
+<nav id="tabs">
+  <a href="#" class="active"><span>⚽</span>Play</a>
+  <a href="../../" id="hubLink"><span>🏠</span>Hub</a>
+</nav>
+<script src="../../js/hub-online.js"></script>
+<script src="../../js/share-score.js"></script>
+<script src="../../js/leaderboard-games.js"></script>
+<script>
+
+function recordRun(key, best, xp) {
+  try {
+    var n = function (k) { return Number(localStorage.getItem(k)) || 0; };
+    localStorage.setItem(key + 'Plays', n(key + 'Plays') + 1);
+    localStorage.setItem(key + 'XP', n(key + 'XP') + Math.max(0, Math.floor(xp)));
+    if (best > n(key + 'Best')) localStorage.setItem(key + 'Best', String(best));
+  } catch (e) {}
+}
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const overEl = document.getElementById('over'), goBtn = document.getElementById('go'), goOnline = document.getElementById('goOnline');
+const sA = document.getElementById('sA'), sB = document.getElementById('sB'), roundEl = document.getElementById('round'), msgEl = document.getElementById('msg'), tagEl = document.getElementById('tag');
+if (location.hostname.endsWith('itch.io')) document.getElementById('hubLink').href = 'https://biggamehub.itch.io/';
+
+const ROSTER = [
+  'amaan/amaan.jpg', 'connectsamuel/samuel.png', 'angryhaider/haider.png', 'angryhaider/zach.png',
+  'stackjosh/josh.png', 'snariyan/ariyan.png', 'paccymatt/charlie.png', 'kickaustin/austin.png',
+  'wackjoe/joe.jpeg', 'christian/head.png', 'snariyan/haider.png', 'snariyan/amaan.png',
+  'paccymatt/g1.png', 'paccymatt/g2.png', 'paccymatt/g3.png', 'paccymatt/g4.png'
+];
+const TEAM_NAMES = ['Kings FC', 'Tower United', 'Crew City', 'Haider Rovers', 'Joe Athletic', 'Amaan Town', 'Zach Wanderers', 'Samuel Stars', 'Josh Stackers', 'Austin Rangers'];
+const KITS = [
+  { shirt: '#e53935', shorts: '#ffffff', socks: '#e53935' },
+  { shirt: '#1e88e5', shorts: '#ffffff', socks: '#1e88e5' },
+  { shirt: '#fdd835', shorts: '#1b1b1b', socks: '#fdd835' },
+  { shirt: '#8e24aa', shorts: '#ffffff', socks: '#8e24aa' }
+];
+const KEEPER_KIT = { shirt: '#ff8a00', shorts: '#1e4fd6', socks: '#1e4fd6' };
+const imgs = {};
+for (const p of ROSTER) { imgs[p] = new Image(); imgs[p].src = '../' + p; }
+
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let rng = Math.random;
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+let W, H, dpr = 1, state = 'menu';
+let teams = [], scores = [0, 0], kick = 0, phase = 'keep', diveZone = 0, shot = null, keeperX = 0, keeperTarget = null;
+let dailyMatch = false;
+function todayKey() { var d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
+function dailyDone() { try { return !!localStorage.getItem('kingsDaily_' + todayKey()); } catch (e) { return false; } }
+let matchNo = 0, aimStart = null, aimNow = null, online = null, myTeam = 0, aiT = 0, pendingReady = -1;
+
+function resize() { dpr = window.devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+addEventListener('resize', resize); resize();
+
+// ---- layout ----
+const gW = () => W * 0.58, gX = () => (W - gW()) / 2, gY = () => H * 0.13, gH = () => gW() * 0.4;
+const ballPos = () => ({ x: W / 2, y: H * 0.66 });
+const KR = () => W * 0.075;
+const zoneX = (z) => gX() + gW() * (z < 0 ? 0.2 : z > 0 ? 0.8 : 0.5);
+
+// ---- roles ----
+const shooterOf = (k) => k % 2;
+const keeperOf = (k) => 1 - (k % 2);
+// the human is team 0 against the AI; online, each phone is one of the two teams
+const isHumanTeam = (t) => online ? t === myTeam : t === 0;
+const myRoleIsKeeper = () => isHumanTeam(keeperOf(kick));
+const myRoleIsShooter = () => isHumanTeam(shooterOf(kick));
+
+function newMatch(seed) {
+  rng = (seed === undefined) ? Math.random : mulberry32(seed);
+  matchNo++; pendingReady = -1;
+  var _s = document.getElementById('share'); if (_s) _s.style.display = 'none';
+  var _lb = document.getElementById('lbBox'); if (_lb) _lb.innerHTML = '';
+  const pool = shuffle(ROSTER.slice()), names = shuffle(TEAM_NAMES.slice());
+  teams = [0, 1].map(function (i) {
+    const squad = [];
+    for (let k = 0; k < 11; k++) squad.push(pool[(i * 5 + k) % pool.length]);
+    return { name: names[i], kit: KITS[i * 2 % KITS.length], squad: shuffle(squad) };
+  });
+  if (!online) teams[0].name = 'Your XI';
+  scores = [0, 0]; kick = 0; shot = null; diveZone = 0;
+  keeperX = zoneX(0); keeperTarget = zoneX(0);
+  setPhase('keep');
+}
+
+function setPhase(p) { phase = p; aiT = 0; updateHud(); }
+
+function updateHud() {
+  if (!teams.length) return;
+  sA.innerHTML = teams[0].name + '<small>' + scores[0] + '</small>';
+  sB.innerHTML = teams[1].name + '<small>' + scores[1] + '</small>';
+  roundEl.textContent = 'Kick ' + (kick + 1) + ' · ' + teams[shooterOf(kick)].name + ' shoot';
+  let t = '';
+  if (phase === 'keep') {
+    if (myRoleIsKeeper()) t = '🧤 YOU KEEP: tap left, centre or right';
+    else t = online ? '⏳ Keeper is choosing…' : '🤖 AI keeper is choosing…';
+  } else if (phase === 'shoot') {
+    t = myRoleIsShooter() ? '⚽ YOU SHOOT: drag back from the ball' : (online ? '👀 Keeper is ready' : '🤖 AI is shooting…');
+  } else if (phase === 'waitshot') {
+    t = '🧤 Set! Waiting for the shot…';
+  }
+  tagEl.textContent = t;
+  tagEl.style.display = (t && phase !== 'anim' && phase !== 'pause') ? 'block' : 'none';
+}
+
+function flash(text, col) {
+  msgEl.textContent = text; msgEl.style.color = col; msgEl.style.opacity = 1;
+  clearTimeout(flash.t); flash.t = setTimeout(function () { msgEl.style.opacity = 0; }, 1000);
+}
+
+function showOverlay(title, sub, goText, showLocal, showOnlineBtn) {
+  document.getElementById('otitle').textContent = title;
+  document.getElementById('osub').textContent = sub;
+  goBtn.textContent = goText; goBtn.style.display = showLocal ? 'block' : 'none';
+  goOnline.style.display = showOnlineBtn ? 'block' : 'none';
+  var gd = document.getElementById('goDaily');
+  gd.style.display = (showLocal && !dailyDone()) ? 'block' : 'none';
+  overEl.classList.add('on');
+}
+function showMenu() {
+  state = 'menu';
+  showOverlay('Kings Shootout', 'One side shoots while the other keeps goal, and the roles swap every kick. The keeper picks a side, then the shooter drags back from the ball to aim. The keeper dives as the ball is kicked.', '⚽ Play vs AI', true, true);
+  goBtn.className = 'btn'; tagEl.style.display = 'none';
+}
+
+function checkEnd() {
+  const done = kick;
+  if (done >= 10 && done % 2 === 0 && scores[0] !== scores[1]) { endMatch(); return true; }
+  return false;
+}
+function endMatch() {
+  state = 'over';
+  var mine = online ? myTeam : 0;
+  var myGoals = scores[mine], myWon = (scores[0] > scores[1]) === (mine === 0);
+  recordRun('kingsShootout', myGoals, myGoals * 10 + (myWon ? 30 : 0));
+  if (dailyMatch) { try { localStorage.setItem('kingsDaily_' + todayKey(), '1'); } catch (e) {} }
+  if (myWon) { try { localStorage.setItem('kingsShootoutWins', String((Number(localStorage.getItem('kingsShootoutWins')) || 0) + 1)); } catch (e) {} }
+  HubBoard.submitAndShow('kings_shootout', Number(localStorage.getItem('kingsShootoutWins')) || 0, document.getElementById('lbBox'));
+  var sh = document.getElementById('share'); sh.style.display = 'block';
+  sh.onclick = function () { HubShare('Kings Shootout', (myWon ? 'won' : 'lost') + ' ' + myGoals + '–' + (mine === 0 ? scores[1] : scores[0]) + (dailyMatch ? ' in the daily match' : '')); };
+  const w = scores[0] > scores[1] ? teams[0].name : teams[1].name;
+  const sub = teams[0].name + ' ' + scores[0] + ' – ' + scores[1] + ' ' + teams[1].name;
+  if (online) {
+    const won = (scores[0] > scores[1]) === (myTeam === 0);
+    showOverlay(won ? 'You win! 🏆' : 'You lose', sub, online.isHost ? 'Rematch' : 'Ask for rematch', true, false);
+    goBtn.className = 'btn online';
+  } else {
+    const won = scores[0] > scores[1];
+    showOverlay(won ? 'You win! 🏆' : 'AI wins', sub, 'Play again', true, true);
+    goBtn.className = 'btn';
+  }
+}
+
+// ---- shot result (the keeper's phone works this out; in vs-AI play it's done locally) ----
+function computeResult(tx, z) {
+  const gx = gX(), gw = gW();
+  if (tx < gx - 4 || tx > gx + gw + 4) return 'miss';
+  if (Math.abs(tx - zoneX(z)) < gw * 0.16 && rng() < 0.8) return 'save';
+  return 'goal';
+}
+function startShotAnim(tx, result) {
+  const b = ballPos(), gx = gX(), gw = gW();
+  shot = { sx: b.x, sy: b.y, tx: Math.min(Math.max(tx, gx - 30), gx + gw + 30), ty: gY() + gH() * 0.12, t: 0, dur: 0.6, result: result };
+  if (result !== null) keeperTarget = zoneX(diveZone);   // keeper dives at the same moment the ball is kicked
+  setPhase('anim');
+}
+
+function finishKick() {
+  const r = shot.result, who = shooterOf(kick);
+  if (r === 'goal') { scores[who]++; flash('GOAL!', '#fff'); }
+  else if (r === 'save') flash('SAVED!', '#ffd24a');
+  else flash('MISS!', '#ff8a8a');
+  shot = null;
+  setPhase('pause');
+  setTimeout(function () {
+    if (state !== 'play') return;
+    kick++;
+    if (checkEnd()) return;
+    diveZone = 0; keeperTarget = zoneX(0);
+    setPhase('keep');
+    // the keeper may have chosen before we finished the last kick
+    if (pendingReady === kick && myRoleIsShooter()) { pendingReady = -1; setPhase('shoot'); }
+  }, 1000);
+}
+
+function update(dt) {
+  if (keeperTarget !== null) keeperX += (keeperTarget - keeperX) * Math.min(1, dt * 10);
+  if (shot) {
+    shot.t += dt;
+    if (shot.t >= shot.dur && shot.result !== null) finishKick();
+  }
+  // AI decisions in vs-AI play
+  if (!online && phase === 'keep' && !myRoleIsKeeper()) {
+    aiT += dt;
+    if (aiT > 0.9) { diveZone = Math.floor(rng() * 3) - 1; setPhase('shoot'); }
+  } else if (!online && phase === 'shoot' && !myRoleIsShooter()) {
+    aiT += dt;
+    if (aiT > 1.2) {
+      const tx = gX() + gW() * (-0.05 + rng() * 1.1);
+      startShotAnim(tx, computeResult(tx, diveZone));
+    }
+  }
+}
+
+// ---- drawing ----
+function drawPitch() {
+  const bands = 9;
+  for (let i = 0; i < bands; i++) { ctx.fillStyle = i % 2 ? '#3fae52' : '#36a049'; ctx.fillRect(0, i * H / bands, W, H / bands + 1); }
+  ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = Math.max(3, W * 0.008);
+  ctx.beginPath(); ctx.moveTo(0, gY() + gH()); ctx.lineTo(W, gY() + gH()); ctx.stroke();
+  const pTop = gY() + gH() + H * 0.14;
+  ctx.beginPath(); ctx.moveTo(0, pTop); ctx.lineTo(W, pTop); ctx.stroke();
+  const b = ballPos(); ctx.fillStyle = 'rgba(255,255,255,.95)';
+  ctx.beginPath(); ctx.arc(b.x, b.y + H * 0.06, 4, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawGoal() {
+  const gx = gX(), gw = gW(), gy = gY(), gh = gH();
+  ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(gx, gy, gw, gh);
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1;
+  const step = Math.max(10, gw / 26);
+  for (let x = gx; x <= gx + gw + 0.5; x += step) { ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy + gh); ctx.stroke(); }
+  for (let y = gy; y <= gy + gh + 0.5; y += step) { ctx.beginPath(); ctx.moveTo(gx, y); ctx.lineTo(gx + gw, y); ctx.stroke(); }
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(5, W * 0.012);
+  ctx.beginPath(); ctx.moveTo(gx, gy + gh); ctx.lineTo(gx, gy); ctx.lineTo(gx + gw, gy); ctx.lineTo(gx + gw, gy + gh); ctx.stroke();
+}
+
+function drawFace(path, x, y, r) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+  const im = imgs[path];
+  if (im && im.complete && im.naturalWidth) ctx.drawImage(im, x - r, y - r, r * 2, r * 2);
+  else { ctx.fillStyle = '#ddd'; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
+  ctx.restore();
+  ctx.lineWidth = Math.max(2, r * 0.08); ctx.strokeStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+}
+
+function drawPlayer(kit, path, x, y, s, lean) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(lean);
+  ctx.fillStyle = kit.socks;
+  ctx.fillRect(-s * 0.32, s * 0.9, s * 0.24, s * 0.9);
+  ctx.fillRect(s * 0.08, s * 0.9, s * 0.24, s * 0.9);
+  ctx.fillStyle = kit.shorts;
+  ctx.beginPath(); ctx.roundRect(-s * 0.5, s * 0.45, s, s * 0.6, s * 0.12); ctx.fill();
+  ctx.fillStyle = kit.shirt;
+  ctx.beginPath(); ctx.roundRect(-s * 0.55, -s * 0.05, s * 1.1, s * 0.6, s * 0.2); ctx.fill();
+  ctx.strokeStyle = kit.shirt; ctx.lineWidth = s * 0.22; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-s * 0.5, s * 0.05); ctx.lineTo(-s * 0.95, s * 0.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(s * 0.5, s * 0.05); ctx.lineTo(s * 0.95, s * 0.5); ctx.stroke();
+  drawFace(path, 0, -s * 0.35, s * 0.45);
+  ctx.restore();
+}
+
+function drawBall(x, y, r) {
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = Math.max(1.5, r * 0.1);
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#222';
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + i * Math.PI * 2 / 5;
+    ctx.beginPath(); ctx.arc(x + Math.cos(a) * r * 0.5, y + Math.sin(a) * r * 0.5, r * 0.28, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function drawTarget(x, y, r) {
+  ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffd600'; ctx.beginPath(); ctx.arc(x, y, r * 0.72, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.arc(x, y, r * 0.42, 0, Math.PI * 2); ctx.fill();
+}
+
+function draw() {
+  drawPitch();
+  drawGoal();
+  if (!teams.length) return;
+  const b = ballPos();
+  const sIdx = shooterOf(kick), kIdx = keeperOf(kick);
+  const idx = (kick >> 1) % 11;
+  const shooterFace = teams[sIdx].squad[idx], keeperFace = teams[kIdx].squad[idx];
+
+  const kx = keeperX, ky = gY() + gH() * 0.78;
+  const lean = Math.max(-0.7, Math.min(0.7, (kx - zoneX(0)) / (gW() * 0.4))) * 0.5;
+  drawPlayer(KEEPER_KIT, keeperFace, kx, ky, KR() * 1.1, lean);
+
+  drawPlayer(teams[sIdx].kit, shooterFace, b.x, b.y + H * 0.2, KR() * 1.35, 0);
+
+  if (aimStart && aimNow && phase === 'shoot') {
+    const tx = computeShotX(aimNow);
+    if (tx !== null) {
+      ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.setLineDash([10, 10]); ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(tx, gY() + gH() * 0.12); ctx.stroke(); ctx.setLineDash([]);
+      drawTarget(tx, gY() + gH() * 0.12, W * 0.035);
+    }
+  }
+
+  let bx = b.x, by = b.y, br = W * 0.028;
+  if (shot) { const p = Math.min(1, shot.t / shot.dur); bx = shot.sx + (shot.tx - shot.sx) * p; by = shot.sy + (shot.ty - shot.sy) * p; br *= 1 - 0.35 * p; }
+  drawBall(bx, by, br);
+}
+
+// ---- input ----
+function computeShotX(p) {
+  const b = ballPos();
+  const dx = b.x - p.x, dy = b.y - p.y;
+  if (Math.hypot(dx, dy) < 25 || dy >= -20) return null;
+  const t = (b.y - (gY() + gH() * 0.12)) / (-dy);
+  return b.x + dx * t;
+}
+
+cv.addEventListener('pointerdown', function (e) {
+  if (state !== 'play') return;
+  const p = { x: e.clientX, y: e.clientY };
+  if (phase === 'keep') {
+    if (!myRoleIsKeeper()) return;
+    // choosing a side does not move the keeper: the dive happens when the ball is kicked
+    diveZone = p.x < W / 3 ? -1 : (p.x > W * 2 / 3 ? 1 : 0);
+    if (online) { online.send('ready', { m: matchNo, k: kick }); setPhase('waitshot'); }
+    else setPhase('shoot');
+    return;
+  }
+  if (phase === 'shoot') {
+    if (!myRoleIsShooter()) return;
+    const b = ballPos();
+    if (Math.hypot(p.x - b.x, p.y - b.y) < 90) { aimStart = b; aimNow = p; cv.setPointerCapture(e.pointerId); }
+  }
+});
+cv.addEventListener('pointermove', function (e) { if (aimStart) aimNow = { x: e.clientX, y: e.clientY }; });
+cv.addEventListener('pointerup', function (e) {
+  if (!aimStart) return;
+  const p = aimNow || { x: e.clientX, y: e.clientY };
+  aimStart = null; aimNow = null;
+  const tx = computeShotX(p);
+  if (tx === null || phase !== 'shoot') return;
+  if (online) {
+    // the keeper's phone works out the save and replies with the result
+    online.send('shot', { m: matchNo, k: kick, tx: tx });
+    startShotAnim(tx, null);
+  } else {
+    startShotAnim(tx, computeResult(tx, diveZone));
+  }
+});
+
+// ---- menus and online ----
+goBtn.onclick = function () {
+  dailyMatch = false;
+  if (online) { if (online.isHost) online.startMatch(); else online.send('rematch', {}); return; }
+  online = null; myTeam = 0;
+  newMatch(); state = 'play'; overEl.classList.remove('on');
+};
+
+document.getElementById('goDaily').onclick = function () {
+  if (dailyDone()) return flash('Daily match done! Come back tomorrow', '#fff');
+  online = null; myTeam = 0; dailyMatch = true;
+  newMatch(todayKey()); state = 'play'; overEl.classList.remove('on');
+};
+goOnline.onclick = function () {
+  if (typeof HubOnline === 'undefined') return flash('Online needs a connection', '#fff');
+  overEl.classList.remove('on');
+  HubOnline.openLobby({
+    game: 'kingsshootout', title: 'Kings Shootout', min: 2, max: 2,
+    theme: { bg: 'rgba(10,40,25,.94)', panel: '#15452d', border: '#7ee0a6', title: '#7ee0a6', accent: '#1fa36b', shadow: '#0f6b44', ring: 'rgba(126,224,166,.35)', font: '"Trebuchet MS","Segoe UI",system-ui,sans-serif' },
+    onStart: startOnline,
+    onEnd: function () { online = null; showMenu(); },
+    onClose: function () { showMenu(); }
+  });
+};
+
+let bound = null;
+function bindRoom(room) {
+  if (bound === room) return;
+  bound = room;
+  // the keeper has chosen a side: the shooter can aim now, but doesn't learn which side
+  room.on('ready', function (d) {
+    if (!d || !online || d.m !== matchNo) return;
+    if (d.k === kick) { if (phase === 'keep' && myRoleIsShooter()) setPhase('shoot'); }
+    else if (d.k === kick + 1) pendingReady = d.k;   // our last kick is still finishing
+  });
+  // the shooter's shot arrives at the keeper's phone: the keeper dives and the result is sent back
+  room.on('shot', function (d) {
+    if (!d || !online || d.m !== matchNo || d.k !== kick) return;
+    if (phase !== 'waitshot' || !myRoleIsKeeper()) return;
+    const r = computeResult(d.tx, diveZone);
+    startShotAnim(d.tx, r);
+    room.send('result', { m: matchNo, k: kick, z: diveZone, r: r });
+  });
+  // the result arrives at the shooter's phone so the keeper's dive shows there too
+  room.on('result', function (d) {
+    if (!d || !online || d.m !== matchNo || d.k !== kick) return;
+    if (shot && shot.result === null) { shot.result = d.r; diveZone = d.z; keeperTarget = zoneX(d.z); }
+  });
+  room.on('left', function () { if (online) flash('Your opponent left', '#fff'); });
+  room.on('rematch', function () { if (room.isHost && state === 'over') room.startMatch(); });
+}
+
+function startOnline(room, data) {
+  bindRoom(room);
+  online = room;
+  myTeam = (data.ids && data.ids[0] === room.me) ? 0 : 1;
+  newMatch(data.seed);
+  const nm = data.names || {};
+  teams[0].name = (nm[data.ids[0]] || 'Player 1') + ' XI';
+  teams[1].name = (nm[data.ids[1]] || 'Player 2') + ' XI';
+  updateHud();
+  overEl.classList.remove('on');
+  state = 'play';
+}
+
+showMenu();
+let lastT = 0;
+function frame(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000 || 0); lastT = t;
+  if (state === 'play') update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

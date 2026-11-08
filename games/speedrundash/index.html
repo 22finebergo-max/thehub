@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>Speedrun Dash</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b1020;color:#fff;font-family:system-ui,-apple-system,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+  #c{display:block;position:fixed;inset:0}
+  #hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;right:90px;display:flex;justify-content:space-between;font-weight:700;font-size:16px;pointer-events:none;text-shadow:0 2px 4px #000}
+  #back{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);right:10px;color:#fff;background:#1a2340;border:1px solid #3a4a7a;border-radius:8px;padding:6px 10px;text-decoration:none;font-size:14px;z-index:2}
+  #banner{position:fixed;left:0;right:0;bottom:44px;text-align:center;font-weight:700;pointer-events:none;text-shadow:0 2px 4px #000;z-index:1}
+  .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:3}
+  .overlay.show{display:flex}
+  .panel{background:#15203d;border:2px solid #3a4a7a;border-radius:16px;padding:22px;text-align:center;max-width:320px;width:calc(100% - 32px)}
+  .panel h2{margin:0 0 8px;font-size:24px}
+  .panel p{margin:0 0 8px;line-height:1.4}
+  .btn{display:block;width:100%;box-sizing:border-box;margin-top:10px;background:#4ecdc4;color:#0b1020;border:0;border-radius:10px;padding:12px;font-size:16px;font-weight:700;cursor:pointer}
+  .btn.alt{background:#1a2340;color:#fff;border:1px solid #3a4a7a}
+  .btn.mid{background:#ffb347}
+  .btn.hard{background:#ff6b6b}
+  .small{font-size:13px;opacity:.8}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><span id="time">0.00s</span><span id="best"></span></div>
+<a id="back" href="../../index.html">Hub</a>
+<div id="banner"></div>
+
+<div id="menu" class="overlay show"><div class="panel">
+  <h2>Speedrun Dash</h2>
+  <p class="small">Dodge the crew hazards, grab Amaan coins and pass Christian's checkpoints.</p>
+  <button class="btn" data-mode="timed" data-diff="easy">Easy race</button>
+  <button class="btn mid" data-mode="timed" data-diff="medium">Medium race</button>
+  <button class="btn hard" data-mode="timed" data-diff="hard">Hard race</button>
+  <button class="btn" data-mode="endless">Endless (solo)</button>
+  <button class="btn alt" id="party">2 Player party code (endless)</button>
+  <p class="small">Endless speeds up every second until you hit a hazard. 2 Player always uses Endless, on the same road.</p>
+</div></div>
+
+<div id="over" class="overlay"><div class="panel">
+  <h2 id="rank"></h2>
+  <p id="result"></p>
+  <button class="btn" id="again">Run again</button>
+  <button class="btn alt" id="roomBtn" style="display:none">Back to party room</button>
+  <button class="btn alt" id="menuBtn">Menu</button>
+</div></div>
+
+<script src="../../js/hub-online.js"></script>
+<script>
+(function () {
+  var cv = document.getElementById('c');
+  var ctx = cv.getContext('2d');
+  var timeEl = document.getElementById('time');
+  var bestEl = document.getElementById('best');
+  var banner = document.getElementById('banner');
+  var menuEl = document.getElementById('menu');
+  var overEl = document.getElementById('over');
+  var rankEl = document.getElementById('rank');
+  var resultEl = document.getElementById('result');
+  var againBtn = document.getElementById('again');
+  var menuBtn = document.getElementById('menuBtn');
+  var roomBtn = document.getElementById('roomBtn');
+  var partyBtn = document.getElementById('party');
+
+  var LENGTH = 7000;   // finish distance for timed races, in units
+  var PX = 0.5;        // screen pixels per unit
+  var LANES = 3;
+  var WINDOW = 28;     // units either side of Ariyan that count as touching something
+  var MARGIN = 40;
+
+  var DIFF = {
+    easy:   { name: 'Easy',   speed: 220, gap: 380, range: 220, gold: 34, silver: 44 },
+    medium: { name: 'Medium', speed: 260, gap: 310, range: 230, gold: 29, silver: 38 },
+    hard:   { name: 'Hard',   speed: 300, gap: 220, range: 170, gold: 25, silver: 32 }
+  };
+
+  /* every crew face in the game (resized copies in ./faces) */
+  var FACE_SRC = {
+    ariyan:   'faces/ariyan.png',
+    amaan:    'faces/amaan.jpg',
+    christian:'faces/christian.png',
+    bartu:    'faces/bartu.jpg',
+    austin:   'faces/austin.png',
+    joe:      'faces/joe.jpg',
+    zach:     'faces/zach.png',
+    charlie:  'faces/charlie.png',
+    samuel:   'faces/samuel.png',
+    josh:     'faces/josh.png',
+    zainab:   'faces/zainab.png',
+    ben:      'faces/ben.jpg',
+    haider:   'faces/haider.png',
+    dhyiaan:  'faces/dhyiaan.jpg'
+  };
+  var HAZARD_FACES = ['austin', 'joe', 'zach', 'charlie', 'samuel', 'josh', 'zainab', 'ben', 'haider', 'dhyiaan'];
+
+  var IMG = {};
+  Object.keys(FACE_SRC).forEach(function (k) {
+    var im = new Image();
+    im.src = FACE_SRC[k];
+    IMG[k] = im;
+  });
+
+  var dpr = Math.min(2, window.devicePixelRatio || 1), W = 0, H = 0;
+  function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    cv.width = W * dpr;
+    cv.height = H * dpr;
+    cv.style.width = W + 'px';
+    cv.style.height = H + 'px';
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  /* ---- best scores, kept on this device ---- */
+  function lsGet(k) { try { var v = parseFloat(localStorage.getItem(k)); return isNaN(v) ? 0 : v; } catch (e) { return 0; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+  function timedKey(diff) { return 'speedrundash_timed_' + diff; }
+  var ENDLESS_KEY = 'speedrundash_endless';
+
+  /* ---- shared random: party games use the host's seed so both players get the same road ---- */
+  var seed = null;
+  function rnd() {
+    if (seed === null) return Math.random();
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  }
+
+  var state = 'menu';   // menu | play | over
+  var st = null;
+  var room = null;      // the party room while playing 2 player
+  var remote = null;    // the other player: { d, x, dead, score }
+  var sendAcc = 0;
+  var faces = { me: 'ariyan', them: 'haider' };
+
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function say(s) { st.msg = s; st.msgT = 1.2; }
+
+  function partnerName() {
+    if (!room || !room.players) return 'Partner';
+    for (var i = 0; i < room.players.length; i++) {
+      if (room.players[i].id !== room.me) return room.players[i].name || 'Partner';
+    }
+    return 'Partner';
+  }
+
+  /* ---- level generation: pure function of the seed and the distance, so both players match ---- */
+  function genUpTo(limit) {
+    var stop = st.mode === 'timed' ? LENGTH - 200 : Infinity;
+    var target = Math.min(limit, stop);
+    while (st.genD < target) {
+      var lane = Math.floor(rnd() * LANES);
+      var kind = rnd() < 0.8 ? 'hazard' : 'coin';
+      var face = HAZARD_FACES[Math.floor(rnd() * HAZARD_FACES.length)];
+      var ph = rnd() * 6;
+      st.objs.push({ d: st.genD, lane: lane, kind: kind, face: face, taken: false, ph: ph });
+      st.genD += st.gap + rnd() * st.range;
+    }
+    if (st.mode === 'timed') {
+      while (st.genCp < LENGTH) {
+        st.cps.push({ d: st.genCp, lane: Math.floor(rnd() * LANES), done: false });
+        st.genCp += 1000;
+      }
+    }
+  }
+
+  function newRun(mode, diffKey) {
+    var d = DIFF[diffKey] || DIFF.medium;
+    st = {
+      mode: mode, diffKey: diffKey in DIFF ? diffKey : 'medium',
+      gap: d.gap, range: d.range, baseSpeed: d.speed, speed: d.speed,
+      t: 0, pen: 0, dist: 0, lane: 1, x: 1,
+      objs: [], cps: [], genD: 500, genCp: 1000, coins: 0,
+      dead: false, done: false, score: 0,
+      flash: 0, shake: 0, msg: '', msgT: 0
+    };
+    genUpTo(mode === 'timed' ? LENGTH : 2500);
+  }
+
+  function begin() {
+    state = 'play';
+    menuEl.classList.remove('show');
+    overEl.classList.remove('show');
+    banner.textContent = '';
+  }
+
+  function startSolo(mode, diffKey) {
+    seed = null; room = null; remote = null;
+    newRun(mode, diffKey || 'medium');
+    faces.me = 'ariyan';
+    begin();
+  }
+
+  function hookRoom(r) {
+    if (r.__speedrundash) return;
+    r.__speedrundash = true;
+    r.on('pos', function (d) {
+      remote = remote || {};
+      remote.d = d.d;
+      remote.x = d.x;
+    });
+    r.on('over', function (d) {
+      remote = remote || {};
+      remote.dead = true;
+      remote.score = d.score;
+      onRemoteOver();
+    });
+  }
+
+  function startParty(r, data) {
+    seed = (data.seed >>> 0) || 1;
+    room = r;
+    remote = null;
+    sendAcc = 0;
+    hookRoom(r);
+    newRun('endless', 'medium');
+    faces.me = r.isHost ? 'ariyan' : 'haider';
+    faces.them = r.isHost ? 'haider' : 'ariyan';
+    begin();
+  }
+
+  function endParty() {
+    room = null;
+    remote = null;
+    if (state === 'play') showMenu();
+  }
+
+  function showMenu() {
+    state = 'menu';
+    overEl.classList.remove('show');
+    menuEl.classList.add('show');
+    banner.textContent = '';
+  }
+
+  function showOver(title, color, text, opts) {
+    state = 'over';
+    banner.textContent = '';
+    rankEl.textContent = title;
+    rankEl.style.color = color || '#fff';
+    resultEl.textContent = text;
+    againBtn.style.display = opts.again ? 'block' : 'none';
+    roomBtn.style.display = opts.room ? 'block' : 'none';
+    overEl.classList.add('show');
+  }
+
+  /* ---- solo results ---- */
+  function rankFor(t) {
+    var d = DIFF[st.diffKey];
+    if (t < d.gold) return { name: 'Gold', color: '#ffd700' };
+    if (t < d.silver) return { name: 'Silver', color: '#c0c0c0' };
+    return { name: 'Bronze', color: '#cd7f32' };
+  }
+
+  function finishTimed() {
+    st.done = true;
+    var final = Math.max(0, st.t + st.pen);
+    var key = timedKey(st.diffKey);
+    var prev = lsGet(key);
+    var newBest = !prev || final < prev;
+    if (newBest) lsSet(key, final);
+    var r = rankFor(final);
+    showOver(r.name + ' run!', r.color,
+      'Your time: ' + final.toFixed(2) + 's' + (newBest ? ' (new best!)' : ' (best ' + Math.min(prev, final).toFixed(2) + 's)'),
+      { again: true });
+  }
+
+  function endEndlessSolo() {
+    var key = ENDLESS_KEY;
+    var prev = lsGet(key);
+    var newBest = st.score > prev;
+    if (newBest) lsSet(key, st.score);
+    showOver('Game over', '#ff6b6b',
+      'You scored ' + st.score + ' pts' + (newBest ? ' (new best!)' : ' (best ' + Math.max(prev, st.score) + ' pts)'),
+      { again: true });
+  }
+
+  /* ---- 2 player results ---- */
+  function checkPartyEnd() {
+    if (!st.dead || !remote || !remote.dead) return;
+    var mine = st.score, theirs = remote.score || 0, name = partnerName();
+    var title = mine > theirs ? 'You win!' : mine === theirs ? "It's a tie!" : name + ' wins';
+    showOver(title, '#ffe66d', 'You ' + mine + ' pts \u00b7 ' + name + ' ' + theirs + ' pts', { room: true });
+  }
+
+  function onRemoteOver() {
+    if (!st) return;
+    if (st.dead) checkPartyEnd();
+    else say(partnerName() + ' is out! Keep going');
+  }
+
+  function die() {
+    st.dead = true;
+    st.score = Math.floor(st.dist / 10) + st.coins * 25;
+    st.flash = 0.6;
+    st.shake = 0.5;
+    if (room) {
+      room.send('over', { score: st.score });
+      if (remote && remote.dead) checkPartyEnd();
+      else banner.textContent = "You're out! Watching " + partnerName() + '...';
+    } else {
+      endEndlessSolo();
+    }
+  }
+
+  /* ---- game loop logic ---- */
+  function update(dt) {
+    st.flash = Math.max(0, st.flash - dt);
+    st.shake = Math.max(0, st.shake - dt);
+    st.msgT = Math.max(0, st.msgT - dt);
+    st.x += (st.lane - st.x) * Math.min(1, dt * 12);
+    if (st.dead || st.done) return;
+
+    st.t += dt;
+    st.speed = st.mode === 'endless' ? Math.min(800, 260 + 7 * st.t) : st.baseSpeed;
+    // 2 player: a soft rubber band keeps both runners close, so each stays on screen for the other
+    if (room && remote && remote.d != null && !remote.dead) {
+      var gap = remote.d - st.dist;
+      st.speed = Math.max(120, st.speed + Math.max(-90, Math.min(90, gap * 0.6)));
+    }
+    st.dist += st.speed * dt;
+    genUpTo(st.dist + 2500);
+
+    for (var i = 0; i < st.objs.length; i++) {
+      var o = st.objs[i];
+      if (o.taken || o.lane !== st.lane || Math.abs(o.d - st.dist) >= WINDOW) continue;
+      o.taken = true;
+      if (o.kind === 'hazard') {
+        if (st.mode === 'endless') { die(); return; }
+        st.pen += 1;
+        st.flash = 0.4;
+        st.shake = 0.3;
+        say(cap(o.face) + '! +1s');
+      } else {
+        st.coins++;
+        if (st.mode === 'timed') { st.pen -= 1; say('Amaan coin! -1s'); }
+        else say('Amaan coin! +25');
+      }
+    }
+
+    if (st.mode === 'timed') {
+      for (var j = 0; j < st.cps.length; j++) {
+        var cp = st.cps[j];
+        if (!cp.done && cp.lane === st.lane && Math.abs(cp.d - st.dist) < WINDOW) {
+          cp.done = true;
+          st.pen -= 1;
+          say('Christian checkpoint! -1s');
+        }
+      }
+      if (st.dist >= LENGTH) finishTimed();
+    }
+
+    if (room) {
+      sendAcc += dt;
+      if (sendAcc > 0.1) {
+        sendAcc = 0;
+        room.send('pos', { d: Math.round(st.dist), x: Math.round(st.x * 100) / 100 });
+      }
+    }
+  }
+
+  function move(dir) {
+    if (state !== 'play' || !st || st.dead || st.done) return;
+    st.lane = Math.max(0, Math.min(LANES - 1, st.lane + dir));
+  }
+
+  /* ---- drawing ---- */
+  function laneX(v) {
+    var span = W - MARGIN * 2;
+    return MARGIN + span * (v + 0.5) / LANES;
+  }
+  function playerY() { return H * 0.78; }
+  function objY(d) { return playerY() - (d - st.dist) * PX; }
+
+  function drawFace(key, x, y, r, ring) {
+    var img = IMG[key];
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.clip();
+    if (img && img.complete && img.naturalWidth) {
+      var s = Math.max(2 * r / img.naturalWidth, 2 * r / img.naturalHeight);
+      var w = img.naturalWidth * s, h = img.naturalHeight * s;
+      ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
+    } else {
+      ctx.fillStyle = '#334';
+      ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+    }
+    ctx.restore();
+    ctx.strokeStyle = ring || '#fff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+
+  function hazardR() { return W < 480 ? 25 : 19; }
+
+  function drawRoad() {
+    var span = W - MARGIN * 2;
+    ctx.fillStyle = '#18213f';
+    ctx.fillRect(MARGIN, 0, span, H);
+    var off = (st.dist * PX) % 40;
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    for (var k = 1; k < LANES; k++) {
+      var x = MARGIN + span * k / LANES;
+      for (var y = off - 40; y < H; y += 40) ctx.fillRect(x - 2, y, 4, 20);
+    }
+  }
+
+  function drawFinish() {
+    if (st.mode !== 'timed') return;
+    var fy = objY(LENGTH);
+    var bandH = 120;
+    if (fy + 20 < -bandH || fy - bandH > H) return;
+    var span = W - MARGIN * 2;
+    var cols = 10, cw = span / cols, rh = 12;
+    for (var r = 0; r < 2; r++) {
+      for (var c = 0; c < cols; c++) {
+        ctx.fillStyle = (r + c) % 2 ? '#fff' : '#111';
+        ctx.fillRect(MARGIN + c * cw, fy + r * rh - rh, cw, rh);
+      }
+    }
+    var top = fy - bandH;
+    var img = IMG.bartu;
+    if (img && img.complete && img.naturalWidth) {
+      ctx.drawImage(img, MARGIN, top, span, bandH - rh);
+    } else {
+      ctx.fillStyle = '#ffe66d';
+      ctx.fillRect(MARGIN, top, span, bandH - rh);
+    }
+    ctx.strokeStyle = '#ffe66d';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(MARGIN, top, span, bandH - rh);
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#ffe66d';
+    ctx.font = 'bold 16px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('FINISH', W / 2, top - 8);
+  }
+
+  function drawCheckpoints() {
+    if (st.mode !== 'timed') return;
+    for (var i = 0; i < st.cps.length; i++) {
+      var cp = st.cps[i];
+      var y = objY(cp.d);
+      if (y < -40 || y > H + 40) continue;
+      ctx.globalAlpha = cp.done ? 0.3 : 1;
+      drawFace('christian', laneX(cp.lane), y, 18, '#b28dff');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawObjects() {
+    for (var i = 0; i < st.objs.length; i++) {
+      var o = st.objs[i];
+      if (o.taken) continue;
+      var y = objY(o.d);
+      if (y < -40 || y > H + 40) continue;
+      if (o.kind === 'hazard') {
+        drawFace(o.face, laneX(o.lane) + Math.sin(st.t * 3 + o.ph) * 8, y, hazardR(), '#ff4d4d');
+      } else {
+        drawFace('amaan', laneX(o.lane), y, 14, '#ffd700');
+      }
+    }
+  }
+
+  function drawOpponent() {
+    if (!room || !remote || remote.d == null) return;
+    var y = objY(remote.d);
+    var x = laneX(remote.x || 1);
+    var edge = '';
+    if (y < 70) { y = 70; edge = ' \u2191'; }
+    if (y > H - 70) { y = H - 70; edge = ' \u2193'; }
+    ctx.globalAlpha = remote.dead ? 0.35 : 0.9;
+    drawFace(faces.them, x, y, 20, '#ff9ff3');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText((remote.dead ? partnerName() + ' OUT' : partnerName()) + edge, x, y - 30);
+  }
+
+  function drawPlayer() {
+    var x = laneX(st.x);
+    var y = playerY();
+    ctx.globalAlpha = st.dead ? 0.4 : 1;
+    ctx.fillStyle = 'rgba(255,179,71,0.25)';
+    ctx.beginPath();
+    ctx.arc(x, y, 30, 0, Math.PI * 2);
+    ctx.fill();
+    if (st.flash > 0) {
+      ctx.strokeStyle = '#ff3b3b';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(x, y, 26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+    drawFace(faces.me, x, y, 21, '#ffb347');
+    ctx.globalAlpha = 1;
+  }
+
+  function drawProgress() {
+    if (st.mode !== 'timed') return;
+    var frac = Math.min(1, st.dist / LENGTH);
+    var bw = W - 60;
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(30, H - 24, bw, 8);
+    ctx.fillStyle = '#4ecdc4';
+    ctx.fillRect(30, H - 24, bw * frac, 8);
+  }
+
+  function drawMessage() {
+    if (st.msgT <= 0) return;
+    ctx.globalAlpha = Math.min(1, st.msgT * 2);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(st.msg, W / 2, H * 0.18);
+    ctx.globalAlpha = 1;
+  }
+
+  function updateHud() {
+    if (!st || state !== 'play') { timeEl.textContent = ''; bestEl.textContent = ''; return; }
+    if (st.mode === 'timed') {
+      timeEl.textContent = Math.max(0, st.t + st.pen).toFixed(2) + 's';
+      var b = lsGet(timedKey(st.diffKey));
+      bestEl.textContent = (DIFF[st.diffKey].name) + (b ? ' best ' + b.toFixed(2) + 's' : '');
+    } else {
+      var pts = Math.floor(st.dist / 10) + st.coins * 25;
+      timeEl.textContent = pts + ' pts';
+      bestEl.textContent = room
+        ? partnerName() + ' ' + (remote && remote.score != null ? remote.score : '') + ' · ' + Math.round(st.speed)
+        : 'Best ' + lsGet(ENDLESS_KEY) + ' · ' + Math.round(st.speed);
+    }
+  }
+
+  function draw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#0b1020';
+    ctx.fillRect(0, 0, W, H);
+    if (!st) return;
+    ctx.save();
+    if (st.shake > 0) {
+      var k = st.shake / 0.5;
+      ctx.translate((Math.random() - 0.5) * 12 * k, (Math.random() - 0.5) * 12 * k);
+    }
+    drawRoad();
+    drawFinish();
+    drawCheckpoints();
+    drawObjects();
+    drawOpponent();
+    drawPlayer();
+    drawProgress();
+    drawMessage();
+    ctx.restore();
+    if (st.flash > 0) {
+      ctx.fillStyle = 'rgba(255,40,40,' + (st.flash * 0.35).toFixed(3) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  /* ---- controls and menu wiring ---- */
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft' || e.key === 'a') move(-1);
+    else if (e.key === 'ArrowRight' || e.key === 'd') move(1);
+  });
+  cv.addEventListener('pointerdown', function (e) {
+    move(e.clientX < W / 2 ? -1 : 1);
+  });
+
+  document.querySelectorAll('[data-mode]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      startSolo(btn.getAttribute('data-mode'), btn.getAttribute('data-diff'));
+    });
+  });
+
+  partyBtn.addEventListener('click', function () {
+    menuEl.classList.remove('show');
+    HubOnline.openLobby({
+      game: 'speedrundash', title: 'Speed Dash', min: 2, max: 2,
+      onStart: startParty,
+      onEnd: endParty,
+      onClose: function () { showMenu(); }
+    });
+  });
+
+  againBtn.addEventListener('click', function () {
+    if (st) startSolo(st.mode, st.diffKey);
+  });
+  menuBtn.addEventListener('click', function () {
+    if (room) { try { HubOnline.leave(); } catch (e) {} room = null; remote = null; }
+    showMenu();
+  });
+  roomBtn.addEventListener('click', function () {
+    overEl.classList.remove('show');
+    state = 'menu';
+    try { HubOnline.showRoom(); } catch (e) {}
+  });
+
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (state === 'play' && st) update(dt);
+    draw();
+    updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  showMenu();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+:root{--palette-0:rgb(7, 20, 43);--palette-1:rgb(244, 248, 255);--palette-2:rgba(8, 27, 53, 0.85);--palette-3:rgba(111, 232, 255, 0.44);--palette-4:rgba(0, 16, 29, 0.533);--palette-5:rgb(154, 241, 255);--palette-6:rgba(12, 37, 71, 0.91);--palette-7:rgb(255, 255, 255);--palette-8:rgb(6, 21, 42);--palette-9:rgb(23, 35, 58);--palette-10:rgb(255, 242, 119);--palette-11:rgb(255, 158, 56);--palette-12:rgb(255, 246, 161);--palette-13:rgba(2, 9, 24, 0.66);--palette-14:rgba(138, 234, 255, 0.533);--palette-15:rgb(16, 46, 81);--palette-16:rgb(23, 22, 56);--palette-17:rgba(0, 0, 0, 0.6);--palette-18:rgb(140, 236, 255);--palette-19:rgb(217, 229, 251);--palette-20:rgb(67, 217, 255);--palette-21:rgb(112, 239, 204);--palette-22:rgb(7, 23, 42);--palette-23:rgb(35, 55, 90);--palette-24:rgb(234, 244, 255);--palette-25:rgb(145, 168, 214);--palette-26:rgb(187, 206, 233);--palette-27:#17333c;--palette-28:#f4fff9;--palette-29:#8ceac9;--palette-30:#ffe66b;--palette-31:#081823bb;}
+
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0px; width: 100%; height: 100%; overflow: hidden; background: var(--palette-0); color: var(--palette-1); font: 15px system-ui, sans-serif; touch-action: none; user-select: none; }
+
+canvas { position: absolute; inset: 0px; width: 100%; height: 100%; }
+
+#hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; gap: 6px; pointer-events: none; }
+
+.pill { padding: 8px 12px; border-radius: 999px; background: var(--palette-2); border: 1px solid var(--palette-3); font-weight: 800; box-shadow: var(--palette-4) 0px 4px 18px; }
+
+#controls { position: absolute; bottom: 12px; left: 0px; right: 0px; display: flex; justify-content: center; gap: 12px; pointer-events: none; }
+
+.ctrl { pointer-events: auto; border: 2px solid var(--palette-5); background: var(--palette-6); color: var(--palette-7); font: 900 20px system-ui; border-radius: 18px; width: 76px; height: 58px; box-shadow: var(--palette-8) 0px 5px 0px; touch-action: none; }
+
+.ctrl:active { transform: translateY(3px); box-shadow: var(--palette-8) 0px 2px 0px; }
+
+.ctrl.boost { width: 98px; color: var(--palette-9); background: linear-gradient(var(--palette-10), var(--palette-11)); border-color: var(--palette-12); font-size: 15px; }
+
+.veil { position: absolute; inset: 0px; display: none; align-items: center; justify-content: center; padding: 18px; background: var(--palette-13); }
+
+.veil.on { display: flex; }
+
+.panel { width: min(90vw, 390px); padding: 24px; border: 1px solid var(--palette-14); border-radius: 24px; background: linear-gradient(150deg, var(--palette-15), var(--palette-16)); text-align: center; box-shadow: var(--palette-17) 0px 18px 60px; }
+
+.panel h1 { margin: 0px 0px 8px; font-size: 30px; color: var(--palette-18); }
+
+.panel p { line-height: 1.5; color: var(--palette-19); }
+
+.btn { width: 100%; padding: 13px; margin-top: 9px; border: 0px; border-radius: 14px; background: linear-gradient(100deg, var(--palette-20), var(--palette-21)); color: var(--palette-22); font: 800 17px system-ui; }
+
+.btn.alt { background: var(--palette-23); color: var(--palette-24); border: 1px solid var(--palette-25); }
+
+small { color: var(--palette-26); }
+:root { --control-bg: var(--palette-27); --control-ink: var(--palette-28); --control-line: var(--palette-29); --highlight: var(--palette-30); --scrim: var(--palette-31); }
+.btn.alt{display:block;text-decoration:none}.panel{border-radius:8px;max-height:90vh;overflow:auto}.panel h1{letter-spacing:0}.crew-roster{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:20px 0}.crew-roster span{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px}.crew-roster img{width:48px;height:48px;border-radius:50%;object-fit:cover;object-position:center 15%;border:2px solid var(--control-line)}
+.pause-button{position:absolute;right:12px;top:55px;width:42px;height:42px;border-radius:8px;background:var(--control-bg);color:var(--control-ink);border:1px solid var(--control-line);font-size:20px;z-index:2;cursor:pointer}body:has(.veil.on) .pause-button{display:none}.paused canvas{opacity:.5}.paused::after{content:'Paused';position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);font-size:28px;font-weight:bold;pointer-events:none;color:var(--control-ink)}button{cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid var(--highlight);outline-offset:3px}
+
+/* Haider Kart: wheel, turbo and bright HUD */
+#controls{display:none}
+#hud{top:12px}
+#hud .pill{font-size:15px;padding:9px 16px;background:rgba(9,22,44,.78);border:2px solid rgba(255,255,255,.75);color:#fff;text-shadow:0 2px 0 #000;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+#tbar{position:absolute;left:50%;transform:translateX(-50%);top:62px;width:190px;height:12px;border-radius:8px;background:rgba(0,0,0,.38);border:2px solid rgba(255,255,255,.55);overflow:hidden;pointer-events:none}
+#tfill{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffe66b,#ff8a1f);transition:width .12s linear}
+#wheel-wrap{position:absolute;left:14px;bottom:14px;width:150px;height:150px;z-index:4}
+#wheel{width:150px;height:150px;border-radius:50%;touch-action:none;cursor:grab;filter:drop-shadow(0 8px 14px rgba(0,0,0,.45));will-change:transform;user-select:none}
+#wheel svg{width:100%;height:100%;display:block;pointer-events:none}
+#wheel-wrap .hint{position:absolute;left:0;right:0;bottom:-18px;text-align:center;font:800 11px system-ui;color:#fff;text-shadow:0 1px 3px #000;opacity:.85;pointer-events:none}
+.turbo{position:absolute;right:16px;bottom:24px;width:132px;height:88px;border-radius:44px;border:4px solid #fff;background:radial-gradient(circle at 30% 25%,#ffe66b,#ff8a1f 60%,#e8431c);color:#fff;font:900 20px system-ui;letter-spacing:.04em;text-shadow:0 2px 0 #7a2305;box-shadow:0 8px 0 #a33012,0 14px 24px rgba(0,0,0,.35);touch-action:none;z-index:4;cursor:pointer}
+.turbo:active{transform:translateY(5px);box-shadow:0 3px 0 #a33012,0 6px 14px rgba(0,0,0,.35)}
+.veil .panel{background:linear-gradient(160deg,#1c3f6e,#0b1d3a);border-color:rgba(255,255,255,.35);box-shadow:0 20px 50px rgba(0,0,0,.45)}
+.panel h1{font-weight:900;text-shadow:0 3px 0 #000}

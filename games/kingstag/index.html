@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<script src="../../js/sound-guard.js"></script><meta content="text/html; charset=utf-8" http-equiv="Content-Type"/><link href="style.css" rel="stylesheet"/><meta content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" name="viewport"/><title>Kings Tag · The Game Hub</title>
+<meta content="Chase the crew, pass the crown and survive a one-minute Kings Tag match." name="description"/><meta content="Kings Tag · The Game Hub" property="og:title"/><meta content="Chase the crew, pass the crown and survive a one-minute Kings Tag match." property="og:description"/><meta content="website" property="og:type"/><meta content="summary_large_image" name="twitter:card"/></head><body>
+<canvas aria-label="Kings Tag playing field" id="c"></canvas><div id="hud"><span class="pill" id="timer">⏱ 60</span><span class="pill" id="who">👑 YOU'RE IT!</span><span class="pill" id="score">✨ 0 TAGS</span></div>
+<button id="dash" class="dash-button" title="Dash" aria-label="Dash">⚡</button><div id="pad"><button aria-label="Move up" class="up" data-key="up">▲</button><button aria-label="Move left" class="left" data-key="left">◀</button><button aria-label="Move down" class="down" data-key="down">▼</button><button aria-label="Move right" class="right" data-key="right">▶</button></div>
+<div class="veil on" id="intro"><div class="panel"><h1>👑 Kings Tag</h1><button class="btn" id="start">Start the royal chase!</button><a class="btn alt" href="../../index.html">Back to the hub</a></div></div>
+<div class="veil" id="over"><div class="panel"><h1 id="title">Time!</h1><p id="report" aria-live="polite"></p><button class="btn" id="again">Play again</button><a class="btn alt" href="../../index.html">Back to the hub</a></div></div>
+<script src="../../js/crew-rules.js"></script><script src="../../js/crew-game.js"></script><script src="game.js"></script>
+</body></html>

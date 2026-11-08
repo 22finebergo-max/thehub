@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script src="../../js/sound-guard.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Stack a Josh</title>
+<style>
+  html,body{margin:0;height:100%;background:#05060f;color:#f2f4ff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+  #wrap{position:fixed;inset:0;display:flex;flex-direction:column;background:#05060f}
+  #cv{flex:1;width:100%;display:block}
+  .ov{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,3,10,.72)}
+  .ov.on{display:flex}
+  .panel{background:#0b102e;border:3px solid #b26a2e;border-radius:20px;padding:22px;text-align:center;width:min(86%,320px);
+    box-shadow:0 0 0 3px #05061a,0 0 34px rgba(230,140,40,.35)}
+  h1{margin:0 0 8px;font-size:30px;color:#ffc069;letter-spacing:1px;text-shadow:0 0 16px rgba(255,150,50,.55)}
+  p{margin:8px 0;line-height:1.4;color:#e8d9c8}
+  .btn{display:block;width:100%;margin-top:10px;padding:14px;border-radius:14px;border:2px solid #ffb066;
+    background:linear-gradient(180deg,#ff8f3d,#e26a00);color:#fff;font:700 18px system-ui,sans-serif;
+    box-shadow:0 5px 0 #6b2f00;cursor:pointer}
+  .btn:active{transform:translateY(2px);box-shadow:0 3px 0 #6b2f00}
+  .btn.ghost{background:rgba(80,44,10,.35);color:#ffc9a1;border-color:#8a5a33;box-shadow:0 5px 0 #241203}
+  .btn.online{background:linear-gradient(180deg,#3aa0ff,#1f62d6);border-color:#8cc6ff;box-shadow:0 5px 0 #0c2f73}
+  .btn{transition:transform .1s,box-shadow .1s}
+  #duelBar{position:fixed;left:0;right:0;top:0;display:none;gap:6px;justify-content:center;flex-wrap:wrap;padding:8px 8px 0;pointer-events:none;z-index:2}
+  #duelBar.on{display:flex}
+  #duelViews{position:fixed;left:0;right:0;bottom:0;display:none;gap:6px;justify-content:center;padding:0 6px calc(6px + env(safe-area-inset-bottom,0));pointer-events:none;z-index:2}
+  #duelViews.on{display:flex}
+  .dv{position:relative;flex:1 1 0;max-width:180px;height:clamp(120px,24vh,220px);border-radius:14px;overflow:hidden;background:rgba(5,6,20,.82);border:2px solid #3a3f6e}
+  .dv canvas{width:100%;height:100%;display:block}
+  .dv .nm{position:absolute;left:6px;top:4px;right:6px;font:800 12px system-ui,sans-serif;color:#f2f4ff;text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dv.out{opacity:.5}
+  .chip{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:12px;background:rgba(11,16,46,.85);border:2px solid #3a3f6e;font:800 13px system-ui,sans-serif;color:#f2f4ff;transition:opacity .25s,transform .25s,border-color .2s}
+  .chip .dot{width:10px;height:10px;border-radius:50%}
+  .chip b{color:#ffc069;font-size:15px}
+  .chip.me{border-color:#ff9e40}
+  .chip.out{opacity:.45;transform:scale(.94)}
+  .chip.out b{color:#ff8a8a}
+  #duelRank{list-style:none;padding:0;margin:10px 0 0;text-align:left}
+  #duelRank li{display:flex;gap:8px;align-items:center;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);font-weight:700}
+  #duelRank li.me{background:rgba(255,158,64,.18);border-color:rgba(255,158,64,.55)}
+  #duelRank li span:last-child{margin-left:auto;color:#ffc069}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="cv"></canvas></div>
+<div id="duelBar" data-testid="duel-bar"></div>
+<div id="duelViews" data-testid="duel-views"></div>
+
+<div class="ov on" id="pStart">
+  <div class="panel">
+    <h1>Stack a Josh</h1>
+    <p>The tile is Josh. Tap (or press Space) to drop each sliding Josh onto the tower.</p>
+    <p>Line it up perfectly for a PERFECT — streaks grow the tower back. Overhang gets sliced off. Miss the tower completely and it is game over.</p>
+    <button class="btn" id="bPlay" data-testid="stack-play-button">Play</button>
+    <button class="btn online" id="bOnline" data-testid="stack-online-button">🌐 Stack Duel online (2–4)</button>
+    <button class="btn ghost" id="bBoard">🏆 Leaderboard</button>
+    <button class="btn ghost" id="bHub">Back to the hub</button>
+  </div>
+</div>
+
+<div class="ov" id="pOver">
+  <div class="panel">
+    <h1 id="oTitle">Game over</h1>
+    <p id="oSub"></p>
+    <button class="btn" id="bAgain">Stack again</button>
+    <button class="btn" id="bShare" style="background:linear-gradient(180deg,#ffb84d,#e27d00)">📤 Share score</button>
+    <button class="btn ghost" id="bBoard2">🏆 Leaderboard</button>
+    <button class="btn ghost" id="bHub2">Back to the hub</button>
+  </div>
+</div>
+
+<div class="ov" id="pDuel">
+  <div class="panel">
+    <h1 id="dTitle" data-testid="duel-result-title">Round over</h1>
+    <p id="dSub" data-testid="duel-result-sub"></p>
+    <ul id="duelRank" data-testid="duel-ranking"></ul>
+    <button class="btn" id="dNext" data-testid="duel-next-round-button">▶ Next round</button>
+    <p id="dWait" style="font-size:13px;color:#ffb87a;display:none" data-testid="duel-wait-text">Waiting for the host to start the next round…</p>
+    <button class="btn ghost" id="dLobby" data-testid="duel-lobby-button">Room / invite more</button>
+    <button class="btn ghost" id="dLeave" data-testid="duel-leave-button">Leave room</button>
+  </div>
+</div>
+
+<div class="ov" id="pBoard">
+  <div class="panel">
+    <h1>🏆 Leaderboard</h1>
+    <p id="lbState" style="color:#ffb87a;font-size:13px">Connecting…</p>
+    <div style="display:flex;gap:8px;margin:6px 0 2px">
+      <input id="lbName" maxlength="20" placeholder="Name for the board" style="flex:1;min-width:0;background:#05061a;border:2px solid #8a5a33;border-radius:10px;color:#ffe2c0;padding:9px 11px;font:inherit">
+      <button class="btn" id="lbSave" style="width:auto;margin:0;padding:9px 14px;font-size:15px">Join</button>
+    </div>
+    <div id="lbList" style="max-height:280px;overflow-y:auto;margin:10px 0 4px;text-align:left"></div>
+    <p id="lbNote" style="font-size:12px;color:#c9a06f;min-height:16px"></p>
+    <button class="btn ghost" id="bBoardX">Back</button>
+  </div>
+</div>
+
+<script src="../../js/hub-online.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  var W = 0, H = 0, DPR = 1;
+  var state = 'title'; /* title | play | over */
+  var t = 0;
+
+  var josh = new Image(); josh.src = 'josh.png';
+
+  function ls(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function muted() { return ls('gamehub-sound', '1') === '0' || ls('stackJoshMuted', '0') === '1'; }
+  function haptic(kind) {
+    if (ls('gamehub-haptics', '1') === '0' || !navigator.vibrate) return;
+    try { navigator.vibrate(kind === 'perfect' ? [0, 12] : kind === 'over' ? [0, 40, 60, 90] : 8); } catch (e) {}
+  }
+
+  /* tiny WebAudio sfx (same spirit as the other hub games) */
+  var AC = null;
+  function audio() {
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+    if (AC && AC.state === 'suspended') AC.resume();
+    return AC;
+  }
+  function tone(f0, f1, dur, type, vol, delay) {
+    if (muted()) return; var ac = audio(); if (!ac) return;
+    var t2 = ac.currentTime + (delay || 0);
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t2);
+    o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t2 + dur);
+    g.gain.setValueAtTime(vol, t2);
+    g.gain.exponentialRampToValueAtTime(0.0001, t2 + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(t2); o.stop(t2 + dur + 0.03);
+  }
+  var sfx = {
+    drop: function () { tone(190, 95, 0.08, 'triangle', 0.14); },
+    perfect: function () { tone(660, 660, 0.07, 'sine', 0.12); tone(990, 990, 0.10, 'sine', 0.11, 0.06); },
+    over: function () { tone(220, 55, 0.5, 'sawtooth', 0.13); },
+    whoosh: function () { tone(420, 700, 0.10, 'sine', 0.09); }
+  };
+
+  var best = Number(ls('stackJoshBest', 0)) || 0;
+
+  /* world: single tower column; slabs are world-px squares, level = story index */
+  var SIZE0 = 210, TH = 26;        /* recomputed on reset from screen size */
+  var slabs = [];                  /* {x,z,w,d,lvl,hue} x/z = centre position in world px */
+  var cur = null;                  /* moving slab {axis, pos, dir, speed, w,d,lvl,hue} */
+  var debris = [];                 /* cut-away parts falling */
+  var pops = [];                   /* text pops + sparks */
+  var score = 0, streak = 0, cam = 0, shake = 0, flashA = 0, dropT = 0, perfectsRun = 0;
+  var spots = [];                  /* bg bokeh spots */
+  var stars = [];
+
+  function makeBg() {
+    spots = []; stars = [];
+    for (var i = 0; i < 9; i++)
+      spots.push({ x: Math.random() * W, y: Math.random() * H, r: 60 + Math.random() * 150,
+                   c: ['rgba(64,80,180,0.10)', 'rgba(230,130,40,0.07)', 'rgba(120,60,200,0.08)'][i % 3],
+                   v: 4 + Math.random() * 9, ph: Math.random() * 6.28 });
+    for (var j = 0; j < 60; j++)
+      stars.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 1.6 + 0.4, ph: Math.random() * 6.28, sp: 0.5 + Math.random() });
+  }
+
+  function ox() { return W / 2; }
+  function baseY() { return H * (duel ? 0.6 : 0.82); }
+  function hueFor(lvl) { return (16 + lvl * 9) % 360; }
+
+  function proj(cx, cz, lvl) {
+    /* 2:1 isometric. +X goes down-right, +Z goes down-left, level goes up. */
+    return {
+      x: ox() + (cx - cz),
+      y: baseY() - lvl * TH + (cx + cz) * 0.5 + cam
+    };
+  }
+
+  function reset() {
+    SIZE0 = Math.max(160, Math.min(250, Math.min(W, H) * 0.40));
+    TH = Math.max(19, SIZE0 * 0.125);
+    slabs = [{ x: 0, z: 0, w: SIZE0, d: SIZE0, lvl: 0, hue: hueFor(0), pulse: 0 }];
+    debris = []; pops = [];
+    score = 0; streak = 0; cam = 0; shake = 0; flashA = 0; dropT = 1; perfectsRun = 0;
+  }
+
+  function spawn() {
+    var top = slabs[slabs.length - 1];
+    var axis = (cur === null && slabs.length % 2 === 0) || (slabs.length % 2 === 0) ? 'x' : 'z';
+    cur = {
+      axis: axis,
+      x: top.x, z: top.z,
+      w: top.w, d: top.d,
+      lvl: top.lvl + 1,
+      hue: hueFor(top.lvl + 1),
+      pos: -SIZE0 * 1.05, dir: 1,
+      speed: Math.min(340, 80 + top.lvl * 9 + score * 2)
+    };
+  }
+
+  /* moving slab interval along its axis */
+  function curPos() {
+    var p = cur.pos;
+    if (cur.axis === 'x') return { c: cur.x + p, w: cur.w, o: ['x', 'z'] };
+    return { c: cur.z + p, w: cur.d, o: ['x', 'z'] };
+  }
+
+  function drop() {
+    if (!cur) return;
+    var prev = slabs[slabs.length - 1];
+    var axisCoord, center, half, prevCenter, prevHalf;
+    if (cur.axis === 'x') { center = cur.x + cur.pos; half = cur.w / 2; prevCenter = prev.x; prevHalf = prev.w / 2; }
+    else { center = cur.z + cur.pos; half = cur.d / 2; prevCenter = prev.z; prevHalf = prev.d / 2; }
+
+    var a0 = center - half, a1 = center + half;
+    var b0 = prevCenter - prevHalf, b1 = prevCenter + prevHalf;
+    var o0 = Math.max(a0, b0), o1 = Math.min(a1, b1);
+    var overlap = o1 - o0;
+
+    if (overlap <= 0.5) {
+      /* complete miss: the whole slab tumbles away */
+      var mx = cur.x + (cur.axis === 'x' ? cur.pos : 0);
+      var mz = cur.z + (cur.axis === 'z' ? cur.pos : 0);
+      debris.push({ x: mx, z: mz, w: cur.w, d: cur.d, lvl: cur.lvl, hue: cur.hue,
+                    vy: 0, vx: (cur.axis === 'x' ? Math.sign(cur.pos || 1) * 60 : Math.sign(cur.pos || 1) * 60),
+                    vr: (Math.random() - 0.5) * 1.6, rot: 0, a: 1, photo: true });
+      gameOver();
+      return;
+    }
+
+    var overhang = cur.w - overlap;
+    var keepCenter = (o0 + o1) / 2;
+    var keepSize = overlap;
+    var isPerfect = overhang <= Math.max(6, prevHalf * 0.16);
+
+    if (isPerfect) {
+      keepCenter = prevCenter; keepSize = prevHalf * 2;
+      streak++; perfectsRun++;
+      var bonus = '';
+      if (streak % 4 === 0) {
+        var top2 = slabs[slabs.length - 1];
+        var grow = Math.min(SIZE0 - (cur.axis === 'x' ? top2.w : top2.d), 26);
+        if (grow > 0.5) { top2.w += grow; if (cur.axis === 'z') top2.d = top2.w; if (cur.axis === 'x') top2.d = top2.w; bonus = ' · GREW!'; }
+      }
+      pops.push({ txt: 'PERFECT' + (streak > 1 ? ' ×' + streak : '') + bonus, lvl: prev.lvl + 1, big: true, a: 1 });
+      sfx.perfect(); haptic('perfect');
+      flashA = Math.max(flashA, 0.10);
+      for (var s = 0; s < 10; s++) pops.push({ spark: true, lvl: prev.lvl + 1,
+        ang: Math.random() * 6.28, sp: 60 + Math.random() * 120, a: 1, c: hueFor(prev.lvl + 1) });
+      prev.pulse = 0.28;
+    } else {
+      /* slice off the overhang */
+      var cut0, cut1;
+      if (a0 < b0) { cut0 = a0; cut1 = o0; } else { cut0 = o1; cut1 = a1; }
+      var cutSize = cut1 - cut0, cutCenter = (cut0 + cut1) / 2;
+      if (cutSize > 1) {
+        var dx = cur.axis === 'x' ? cutCenter : cur.x;
+        var dz = cur.axis === 'z' ? cutCenter : cur.z;
+        var dw = cur.axis === 'x' ? cutSize : cur.w;
+        var dd = cur.axis === 'z' ? cutSize : cur.d;
+        debris.push({ x: dx, z: dz, w: dw, d: dd, lvl: cur.lvl, hue: cur.hue,
+                      vy: 0, vx: Math.sign((cutCenter - center) || 1) * 90,
+                      vr: (Math.random() - 0.5) * 2.4, rot: 0, a: 1, photo: Math.random() < 0.85 });
+      }
+      streak = 0;
+      sfx.drop(); haptic('drop');
+      pops.push({ txt: '+1', lvl: prev.lvl + 1, big: false, a: 1 });
+    }
+
+    var ns = {
+      x: cur.axis === 'x' ? keepCenter : cur.x,
+      z: cur.axis === 'z' ? keepCenter : cur.z,
+      w: cur.axis === 'x' ? keepSize : cur.w,
+      d: cur.axis === 'z' ? keepSize : cur.d,
+      lvl: prev.lvl + 1, hue: hueFor(prev.lvl + 1), pulse: isPerfect ? 0.3 : 0
+    };
+    slabs.push(ns);
+    score++;
+    if (score > best) { best = score; save('stackJoshBest', String(best)); }
+    if (duel) duelHeight();
+    shake = Math.min(6, shake + 1.6);
+    cur = null;
+    dropT = 0;
+    spawn();
+    /* brief settle pause before the next slab starts moving */
+    cur.frozen = true;
+    setTimeout(function () { if (cur) cur.frozen = false; }, 90);
+  }
+
+  function gameOver() {
+    state = 'over';
+    streak = 0; shake = 14; flashA = 0.5;
+    sfx.over(); haptic('over');
+    cur = null;
+    if (duel) { duelOut(); return; }
+    /* every finished run pays hub XP and counts towards the hub level */
+    save('stackJoshXP', (Number(ls('stackJoshXP', 0)) || 0) + score * 3 + perfectsRun * 2);
+    save('stackJoshPlays', (Number(ls('stackJoshPlays', 0)) || 0) + 1);
+    save('stackJoshPerfects', (Number(ls('stackJoshPerfects', 0)) || 0) + perfectsRun);
+    document.getElementById('oSub').textContent =
+      'You stacked ' + score + (score === 1 ? ' Josh' : ' Joshes') + ' high. Best: ' + best + '.';
+    setTimeout(function () { show('pOver', true); }, 420);
+    lbPush();
+  }
+
+  /* ---------- input ---------- */
+  function press() {
+    audio();
+    if (duel && state !== 'play') return;
+    if (state === 'play') drop();
+  }
+  window.addEventListener('keydown', function (e) {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'Enter') { e.preventDefault(); press(); }
+    if (e.code === 'KeyM') { save('stackJoshMuted', muted() ? '0' : '1'); }
+  });
+  cv.addEventListener('pointerdown', function (e) { e.preventDefault(); press(); });
+
+  /* ---------- update ---------- */
+  function update(dt) {
+    t += dt;
+    if (shake > 0) shake = Math.max(0, shake - dt * 22);
+    if (flashA > 0) flashA = Math.max(0, flashA - dt * 1.8);
+    if (dropT < 1) dropT = Math.min(1, dropT + dt * 3.2);
+    var top = slabs[slabs.length - 1];
+    var camTarget = Math.max(0, top.lvl * TH + (Math.abs(top.x) + Math.abs(top.z)) * 0.5 - (baseY() - H * 0.60));
+    cam += (camTarget - cam) * Math.min(1, dt * 5);
+    for (var i = 0; i < slabs.length; i++) if (slabs[i].pulse > 0) slabs[i].pulse = Math.max(0, slabs[i].pulse - dt * 1.4);
+
+    if (state === 'play' && cur && !cur.frozen) {
+      cur.pos += cur.dir * cur.speed * dt;
+      var lim = SIZE0 * 1.05;
+      if (cur.pos > lim) { cur.pos = lim; cur.dir = -1; }
+      if (cur.pos < -lim) { cur.pos = -lim; cur.dir = 1; }
+    } else if (state === 'title' && cur) {
+      cur.pos += cur.dir * cur.speed * 0.7 * dt;
+      var lim2 = SIZE0 * 1.05;
+      if (cur.pos > lim2) { cur.pos = lim2; cur.dir = -1; }
+      if (cur.pos < -lim2) { cur.pos = -lim2; cur.dir = 1; }
+    }
+
+    for (var d2 = 0; d2 < debris.length; d2++) {
+      var db = debris[d2];
+      db.vy += 2100 * dt;
+      db.rot += db.vr * dt;
+      db.a -= dt * 0.9;
+    }
+    debris = debris.filter(function (db) { return db.a > 0; });
+    var k = 0;
+    for (var q = debris.length - 1; q >= 0; q--) {
+      debris[q].fly = (debris[q].fly || 0) + debris[q].vy * dt;
+    }
+    for (var p2 = 0; p2 < pops.length; p2++) pops[p2].a -= dt * (pops[p2].spark ? 1.8 : 0.9);
+    pops = pops.filter(function (p3) { return p3.a > 0; });
+  }
+
+  /* ---------- drawing ---------- */
+  function drawBg() {
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#05060f'); g.addColorStop(0.6, '#0a0f26'); g.addColorStop(1, '#141432');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    for (var i = 0; i < spots.length; i++) {
+      var s = spots[i];
+      var yy = (s.y - t * s.v) % (H + 300); if (yy < -150) yy += H + 300;
+      ctx.fillStyle = s.c;
+      ctx.beginPath(); ctx.arc(s.x + Math.sin(t * 0.4 + s.ph) * 20, yy - 150, s.r, 0, 7); ctx.fill();
+    }
+    for (var j = 0; j < stars.length; j++) {
+      var st = stars[j];
+      ctx.globalAlpha = 0.25 + 0.55 * Math.abs(Math.sin(t * st.sp + st.ph));
+      ctx.fillStyle = '#cfd8ff';
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.s, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function paintPhoto(cx, cz, lvl, halfW, halfD, scaleOut, rot, alpha) {
+    /* parallelogram top corners: P1=back(-w,-d) P2=right(+w,-d) P3=front(+w,+d) P4=left(-w,+d) */
+    var p1 = proj(cx - halfW, cz - halfD, lvl);
+    var p2 = proj(cx + halfW, cz - halfD, lvl);
+    var p4 = proj(cx - halfW, cz + halfD, lvl);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (rot) { var c5 = proj(cx, cz, lvl); ctx.translate(c5.x, c5.y); ctx.rotate(rot); ctx.translate(-c5.x, -c5.y); }
+    var bleed = 1 + (scaleOut || 0.05);
+    var sx = (p2.x - p1.x) / 512 * bleed, sy = (p2.y - p1.y) / 512 * bleed;
+    var zx = (p4.x - p1.x) / 512 * bleed, zy = (p4.y - p1.y) / 512 * bleed;
+    var ex = p1.x + (p1.x - p2.x) * (bleed - 1) / 2 + (p1.x - p4.x) * (bleed - 1) / 2;
+    var ey = p1.y + (p1.y - p2.y) * (bleed - 1) / 2 + (p1.y - p4.y) * (bleed - 1) / 2;
+    ctx.transform(sx, sy, zx, zy, ex, ey);
+    if (josh.complete && josh.naturalWidth) ctx.drawImage(josh, 0, 0);
+    else { ctx.fillStyle = '#e8eef6'; ctx.fillRect(0, 0, 512, 512); }
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.restore();
+  }
+
+  function quad(pts, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill();
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+
+  function drawSlab(cx, cz, lvl, w, d, hue, opts) {
+    opts = opts || {};
+    var hw = w / 2, hd = d / 2;
+    var pulse = opts.pulse || 0;
+    var fine = 1 + pulse * 0.16;
+    hw *= fine; hd *= fine;
+    var rot = opts.rot || 0, fly = opts.fly || 0, alpha = opts.alpha == null ? 1 : opts.alpha;
+
+    /* corners, top face */
+    var p1 = proj(cx - hw, cz - hd, lvl), p2 = proj(cx + hw, cz - hd, lvl);
+    var p3 = proj(cx + hw, cz + hd, lvl), p4 = proj(cx - hw, cz + hd, lvl);
+    /* bottom corners (one storey lower, straight down on screen) */
+    var q2 = { x: p2.x, y: p2.y + TH }, q3 = { x: p3.x, y: p3.y + TH }, q4 = { x: p4.x, y: p4.y + TH };
+
+    if (rot) { var cc = proj(cx, cz, lvl); ctx.save(); ctx.translate(cc.x, cc.y + fly); ctx.rotate(rot); ctx.translate(-cc.x, -(cc.y + fly)); }
+    if (fly) { ctx.save(); ctx.translate(0, fly); }
+    ctx.globalAlpha = alpha;
+
+    var L = 62 - Math.min(22, lvl * 0.7);
+    var cSide1 = 'hsl(' + hue + ',52%,' + L + '%)';
+    var cSide2 = 'hsl(' + hue + ',52%,' + Math.max(18, L - 14) + '%)';
+    /* right side (x+ edge), left side (z+ edge) */
+    quad([p2, p3, q3, q2], cSide2, 'rgba(0,0,0,0.18)');
+    quad([p3, p4, q4, q3], cSide1, 'rgba(0,0,0,0.18)');
+    /* top face colour under the photo so edges glow */
+    quad([p1, p2, p3, p4], 'hsl(' + hue + ',48%,' + Math.min(80, L + 16) + '%)', 'rgba(255,255,255,0.22)');
+    ctx.globalAlpha = 1;
+    if (fly) ctx.restore();
+
+    paintPhoto(cx, cz, lvl, hw * 0.92, hd * 0.92, 0.05, 0, alpha);
+    if (rot) ctx.restore();
+  }
+
+  function drawHud() {
+    ctx.save();
+    if (duel) ctx.translate(0, document.getElementById('duelBar').offsetHeight + 6);
+    ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+    ctx.font = '900 52px system-ui, sans-serif';
+    ctx.lineWidth = 9; ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.strokeText(String(score), W / 2, 76);
+    var g = ctx.createLinearGradient(0, 30, 0, 80);
+    g.addColorStop(0, '#fff'); g.addColorStop(1, '#ffd9a8');
+    ctx.fillStyle = g; ctx.fillText(String(score), W / 2, 76);
+    ctx.font = '800 14px system-ui, sans-serif';
+    ctx.lineWidth = 4;
+    var sub = 'BEST ' + best + (muted() ? '   ·   🔇' : '');
+    ctx.strokeText(sub, W / 2, 100); ctx.fillStyle = '#ffc98f'; ctx.fillText(sub, W / 2, 100);
+    if (streak >= 2) {
+      ctx.fillStyle = '#e26a00';
+      rr(W / 2 - 92, 116, 184, 32, 16); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1.5;
+      rr(W / 2 - 92, 116, 184, 32, 16); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = '900 15px system-ui, sans-serif';
+      ctx.fillText('🔥 PERFECT ×' + streak, W / 2, 137);
+    }
+    ctx.restore();
+  }
+  function rr(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawPops() {
+    for (var i = 0; i < pops.length; i++) {
+      var p = pops[i];
+      if (p.spark) {
+        var top = slabs[slabs.length - 1];
+        var base = proj(top.x, top.z, p.lvl);
+        var prog = 1 - p.a;
+        var sx2 = base.x + Math.cos(p.ang) * (30 + prog * p.sp);
+        var sy2 = base.y - 8 - prog * p.sp * 0.7;
+        ctx.globalAlpha = Math.max(0, p.a);
+        ctx.fillStyle = 'hsl(' + p.c + ',80%,72%)';
+        ctx.beginPath(); ctx.arc(sx2, sy2, 3.4 * p.a + 1, 0, 7); ctx.fill();
+        ctx.globalAlpha = 1;
+      } else {
+        var top2 = slabs[slabs.length - 1];
+        var b2 = proj(top2.x, top2.z, p.lvl);
+        var rise = (1 - p.a) * 54;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.a);
+        ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+        ctx.font = p.big ? '900 26px system-ui, sans-serif' : '800 17px system-ui, sans-serif';
+        ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.strokeText(p.txt, b2.x, b2.y - 44 - rise);
+        ctx.fillStyle = p.big ? '#ffe9a8' : '#e8f4ff';
+        ctx.fillText(p.txt, b2.x, b2.y - 44 - rise);
+        ctx.restore();
+      }
+    }
+  }
+
+  function draw() {
+    ctx.save();
+    if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+    drawBg();
+
+    /* ground shadow under the tower */
+    var base = proj(0, 0, -1);
+    var shG = ctx.createRadialGradient(base.x, base.y + TH, 4, base.x, base.y + TH, SIZE0 * 1.1);
+    shG.addColorStop(0, 'rgba(0,0,0,0.5)'); shG.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = shG;
+    ctx.beginPath(); ctx.ellipse(base.x, base.y + TH, SIZE0 * 1.05, SIZE0 * 0.42, 0, 0, 7); ctx.fill();
+
+    for (var i = 0; i < slabs.length; i++) {
+      var s = slabs[i];
+      var isTop = s.lvl === slabs.length - 1;
+      drawSlab(s.x, s.z, s.lvl + (isTop ? easeOut(dropT) - 1 : 0), s.w, s.d, s.hue, { pulse: isTop ? s.pulse : 0 });
+    }
+
+    if (cur) {
+      var cx2 = cur.x + (cur.axis === 'x' ? cur.pos : 0);
+      var cz2 = cur.z + (cur.axis === 'z' ? cur.pos : 0);
+      drawSlab(cx2, cz2, cur.lvl, cur.w, cur.d, cur.hue, {});
+      /* aim guide: faint ghost of the landing zone over the previous top */
+      var pt = slabs[slabs.length - 1];
+      paintPhoto(pt.x, pt.z, cur.lvl, pt.w / 2 * 0.92, pt.d / 2 * 0.92, 0, 0, 0.14);
+    }
+
+    for (var d2 = 0; d2 < debris.length; d2++) {
+      var db = debris[d2];
+      drawSlab(db.x + db.vx * (1 - db.a) * 0.4, db.z, db.lvl, db.w, db.d, db.hue,
+               { rot: db.rot, fly: (1 - db.a) * (1 - db.a) * 420, alpha: Math.min(1, db.a * 1.6) });
+    }
+
+    drawPops();
+    if (state === 'play' || state === 'over' || state === 'count') drawHud();
+    if (state === 'count' && duel) {
+      var left = Math.ceil((duel.goAt - performance.now()) / 1000);
+      ctx.save();
+      ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+      ctx.font = '900 96px system-ui, sans-serif';
+      ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      var txt = left > 0 ? String(left) : 'GO!';
+      ctx.strokeText(txt, W / 2, H * 0.36); ctx.fillStyle = '#ffc069'; ctx.fillText(txt, W / 2, H * 0.36);
+      ctx.font = '800 18px system-ui, sans-serif'; ctx.lineWidth = 5;
+      var sub2 = 'Round ' + duel.round + ' · last Josh standing wins';
+      ctx.strokeText(sub2, W / 2, H * 0.36 + 40); ctx.fillStyle = '#fff'; ctx.fillText(sub2, W / 2, H * 0.36 + 40);
+      ctx.restore();
+    }
+    if (duel && state === 'over' && !duel.done) {
+      ctx.save(); ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+      ctx.font = '900 30px system-ui, sans-serif'; ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.strokeText('You dropped one! Watching…', W / 2, H * 0.30); ctx.fillStyle = '#ff9a8a'; ctx.fillText('You dropped one! Watching…', W / 2, H * 0.30);
+      ctx.restore();
+    }
+    if (state === 'play' && score === 0) {
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = 0.8 + Math.sin(t * 4) * 0.2;
+      ctx.fillStyle = '#fff'; ctx.font = '800 19px system-ui, sans-serif';
+      ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineJoin = 'round';
+      ctx.strokeText('Tap to drop Josh!', W / 2, H * 0.30);
+      ctx.fillText('Tap to drop Josh!', W / 2, H * 0.30);
+      ctx.restore();
+    }
+    if (flashA > 0) { ctx.fillStyle = 'rgba(255,240,220,' + flashA + ')'; ctx.fillRect(-20, -20, W + 40, H + 40); }
+    ctx.restore();
+  }
+  function easeOut(x) { return 1 - (1 - x) * (1 - x) * (1 - x); }
+
+  /* ---------- loop ---------- */
+  var last = 0;
+  function frame(now) {
+    var dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+    last = now;
+    if (state === 'count' && duel && now >= duel.goAt) { state = 'play'; duel.t0 = Date.now(); sfx.whoosh(); }
+    update(dt);
+    draw();
+    if (duel) { duelSendCur(now); duelDrawViews(now); }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- UI ---------- */
+  function show(id, on) { document.getElementById(id).classList.toggle('on', on); }
+  function startGame() {
+    reset(); spawn();
+    state = 'play';
+    show('pStart', false); show('pOver', false);
+    sfx.whoosh();
+  }
+  /* ---------- share card (like Flappy's) ---------- */
+  function buildCard() {
+    var c = document.createElement('canvas');
+    c.width = 640; c.height = 800;
+    var x = c.getContext('2d');
+
+    var g = x.createLinearGradient(0, 0, 0, 800);
+    g.addColorStop(0, '#0a0f26'); g.addColorStop(0.6, '#141a3d'); g.addColorStop(1, '#1f1030');
+    x.fillStyle = g; x.fillRect(0, 0, 640, 800);
+
+    /* mini tower: slabs rising from the bottom, face crowning the top */
+    var levels = Math.min(6, Math.max(1, score));
+    var bw = 148, baseY = 754;
+    for (var i = 0; i < levels; i++) {
+      var y0 = baseY - i * 46, w0 = bw - i * 12;
+      x.fillStyle = 'hsl(' + ((16 + i * 9) % 360) + ',52%,' + (52 - i * 2) + '%)';
+      x.fillRect(320 - w0 / 2, y0, w0, 40);
+      x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 3;
+      x.strokeRect(320 - w0 / 2, y0, w0, 40);
+    }
+    var topSlabY = baseY - Math.max(0, levels - 1) * 46 - 6;
+    x.save();
+    x.beginPath(); x.arc(320, topSlabY - 40, 46, 0, Math.PI * 2); x.closePath(); x.clip();
+    if (josh.complete && josh.naturalWidth) x.drawImage(josh, 320 - 46, topSlabY - 86, 92, 92);
+    else { x.fillStyle = '#ff9e40'; x.fill(); }
+    x.restore();
+    x.beginPath(); x.arc(320, topSlabY - 40, 46, 0, Math.PI * 2);
+    x.lineWidth = 7; x.strokeStyle = '#ff9e40'; x.stroke();
+
+    x.textAlign = 'center';
+    x.fillStyle = '#ffc069';
+    x.font = 'bold 30px "Trebuchet MS", sans-serif';
+    x.fillText('STACK A JOSH 📚', 320, 74);
+    var who = '';
+    try { who = JSON.parse(localStorage.getItem('gamehub-profile-v1') || '{}').name || ''; } catch (e) {}
+    if (who) {
+      x.font = 'bold 19px "Trebuchet MS", sans-serif';
+      x.fillStyle = 'rgba(255,192,105,.7)';
+      x.fillText(who, 320, 102);
+    }
+
+    x.fillStyle = '#f5e9dd';
+    x.font = 'bold 130px "Trebuchet MS", sans-serif';
+    x.fillText(String(score), 320, 262);
+    x.font = 'bold 22px "Trebuchet MS", sans-serif';
+    x.fillStyle = '#ffb87a';
+    x.fillText(score === 1 ? 'JOSH STACKED' : 'JOSHES STACKED', 320, 300);
+    x.font = 'bold 20px "Trebuchet MS", sans-serif';
+    x.fillStyle = 'rgba(245,233,221,.85)';
+    x.fillText('BEST ' + best + (perfectsRun ? '   ·   ' + perfectsRun + ' PERFECT' + (perfectsRun > 1 ? 'S' : '') : ''), 320, 334);
+    x.font = '16px "Trebuchet MS", sans-serif';
+    x.fillStyle = 'rgba(245,233,221,.5)';
+    x.fillText('The Game Hub', 320, 788);
+    return c;
+  }
+
+  function shareScore() {
+    var card = buildCard();
+    var text = 'I stacked ' + score + ' Josh' + (score === 1 ? '' : 'es') + ' high in Stack a Josh on The Game Hub!';
+    card.toBlob(function (blob) {
+      if (!blob) return;
+      var file = new File([blob], 'stack-a-josh.png', { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], text: text, title: 'Stack a Josh' }).catch(function () {});
+        return;
+      }
+      if (navigator.share) { navigator.share({ text: text, url: location.href }).catch(function () {}); return; }
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'stack-a-josh.png';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    }, 'image/png');
+  }
+
+  /* ---------- global leaderboard (same Supabase project as Amaan Clicker) ---------- */
+  var LBCFG = (window.HUB_SUPA && window.HUB_SUPA.leaderboard) || {};
+  var LBU = LBCFG.url || 'https://azmeeaghohopwdwxmvbr.supabase.co';
+  var LBK = LBCFG.key || 'sb_publishable_00HcX4jPC-y8_OnwX1kv-g_zU_OPwcw';
+  var LBAPI = LBU + '/rest/v1/stackjosh_board';
+  var LBHEAD = { apikey: LBK, Authorization: 'Bearer ' + LBK, 'Content-Type': 'application/json' };
+  var LBP = null;
+  function lbPrefs() {
+    if (LBP) return LBP;
+    var b;
+    try { b = JSON.parse(ls('stackJoshBoard-v1', '')); } catch (e) {}
+    if (!b || typeof b !== 'object') b = {};
+    if (!b.key) {
+      var s = '';
+      for (var i = 0; i < 20; i++) s += 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)];
+      b.key = s + Date.now().toString(36);
+    }
+    if (!b.name) {
+      try { b.name = JSON.parse(localStorage.getItem('gamehub-profile-v1') || '{}').name || ''; } catch (e) {}
+    }
+    if (!Array.isArray(b.cache)) b.cache = [];
+    LBP = b;
+    return b;
+  }
+  function lbSavePrefs() { var b = lbPrefs(); save('stackJoshBoard-v1', JSON.stringify(b)); }
+
+  var LBBAD = ['fuck', 'shit', 'cunt', 'nigg', 'bitch', 'wank', 'penis', 'dick', 'slut', 'rape', 'fag'];
+  function lbCleanName(nm) {
+    nm = String(nm || '').replace(/\s+/g, ' ').trim().slice(0, 20);
+    var low = nm.toLowerCase().replace(/[^a-z]/g, '');
+    for (var i = 0; i < LBBAD.length; i++) if (low.indexOf(LBBAD[i]) !== -1) return null;
+    return nm;
+  }
+
+  function lbState(txt, tone) {
+    var el = document.getElementById('lbState');
+    el.textContent = txt;
+    el.style.color = tone === 'bad' ? '#ff8a8a' : tone === 'ok' ? '#9df5c4' : '#ffb87a';
+  }
+  function lbNote(txt) { document.getElementById('lbNote').textContent = txt || ''; }
+
+  /* upsert my best: called on every game over (silent if no name chosen yet) */
+  function lbPush() {
+    var b = lbPrefs();
+    if (!b.name || !isFinite(best) || best < 0 || best > 4000) return;   /* sanity guard */
+    fetch(LBAPI + '?on_conflict=player_key', {
+      method: 'POST', keepalive: true,
+      headers: Object.assign({ Prefer: 'resolution=merge-duplicates,return=minimal' }, LBHEAD),
+      body: JSON.stringify({ player_key: b.key, name: b.name, best: Math.floor(best), updated_at: new Date().toISOString() })
+    }).catch(function () {});
+  }
+
+  function lbPull() {
+    return fetch(LBAPI + '?select=name,best,updated_at&order=best.desc&limit=50', { headers: LBHEAD })
+      .then(function (r) { if (!r.ok) throw r.status; return r.json(); });
+  }
+
+  function lbPaintRows(rows, online) {
+    var el = document.getElementById('lbList');
+    var b = lbPrefs();
+    if (!rows || !rows.length) {
+      el.innerHTML = '<p style="color:#c9a06f;font-size:14px;margin:6px 0">' +
+        (online === false
+          ? 'No scores to show yet. (If you are the hub owner and this stays offline, run the one-time setup SQL — see SUPABASE_SETUP.md.)'
+          : 'Nobody on the board yet — join above and you will be #1.') + '</p>';
+      return;
+    }
+    var html = '';
+    rows.forEach(function (r, i) {
+      var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1) + '.';
+      var mine = b.name && r.name === b.name;
+      var nm = String(r.name || 'Anonymous').replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; });
+      html += '<div style="display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;margin-bottom:6px;' +
+        (mine ? 'background:rgba(255,158,64,.18);border:1px solid rgba(255,158,64,.55)' : 'background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)') + '">' +
+        '<span style="width:34px;text-align:center;font-weight:800">' + medal + '</span>' +
+        '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + nm + '</span>' +
+        '<span style="font-weight:800;color:#ffc069">' + (r.best || 0) + '</span></div>';
+    });
+    el.innerHTML = html;
+  }
+
+  function lbOpen() {
+    var b = lbPrefs();
+    document.getElementById('lbName').value = b.name || '';
+    show('pBoard', true);
+    lbState('Connecting…');
+    lbPaintRows(b.cache, false);
+    lbPull().then(function (rows) {
+      b.cache = rows.slice(0, 50); lbSavePrefs();
+      lbState('Live · top 50', 'ok');
+      lbPaintRows(rows, true);
+    }).catch(function () {
+      lbState('Offline — showing last known board', 'bad');
+      lbPaintRows(b.cache, false);
+    });
+  }
+
+  /* ---------- Stack Duel online (2–4 players, room codes over Supabase Realtime) ----------
+     Everyone stacks their own tower at the same time with identical slab speeds.
+     Miss the tower and you are out; the last Josh standing wins the round. */
+  var duel = null, duelRoom = null, duelWins = {};
+  var PC = (window.HubOnline && HubOnline.colors) || ['#ff4d4d', '#ffd600', '#35c6ff', '#7dff7a'];
+  function duelEsc(x) { return String(x).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function duelPaintBar() {
+    var bar = document.getElementById('duelBar');
+    if (!duel) { bar.classList.remove('on'); bar.innerHTML = ''; return; }
+    bar.classList.add('on');
+    bar.innerHTML = duel.ids.map(function (id, i) {
+      var me = id === duelRoom.me, out = !duel.alive[id];
+      return '<div class="chip' + (me ? ' me' : '') + (out ? ' out' : '') + '" data-testid="duel-chip-' + i + '">' +
+        '<span class="dot" style="background:' + PC[i % 4] + '"></span>' + duelEsc(me ? 'You' : duel.names[id]) +
+        ' <b>' + (duel.scores[id] || 0) + '</b>' + (out ? ' ✖' : '') + (duelWins[id] ? ' · 🏆' + duelWins[id] : '') + '</div>';
+    }).join('');
+  }
+  function duelHeight() {
+    duel.scores[duelRoom.me] = score;
+    duelRoom.send('h', { r: duel.round, s: score, tw: duelTower() });
+    duelPaintBar();
+  }
+  function duelTower() {
+    var k = SIZE0, out = [], from = Math.max(0, slabs.length - 14);
+    for (var i = from; i < slabs.length; i++) { var b = slabs[i]; out.push([b.lvl, +(b.x / k).toFixed(3), +(b.z / k).toFixed(3), +(b.w / k).toFixed(3), +(b.d / k).toFixed(3), Math.round(b.hue)]); }
+    return out;
+  }
+  var duelCurT = 0;
+  function duelSendCur(now) {
+    if (!duel || !duelRoom || state !== 'play' || !cur || now - duelCurT < 110) return;
+    duelCurT = now;
+    var k = SIZE0;
+    duelRoom.send('c', { r: duel.round, a: cur.axis === 'x' ? 0 : 1, p: +(cur.pos / k).toFixed(3), v: +((cur.speed * cur.dir) / k).toFixed(3),
+      x: +(cur.x / k).toFixed(3), z: +(cur.z / k).toFixed(3), w: +(cur.w / k).toFixed(3), d: +(cur.d / k).toFixed(3), l: cur.lvl, h: Math.round(cur.hue) });
+  }
+  /* rivals' live towers: one small iso view per opponent */
+  var dviews = {};
+  function duelBuildViews() {
+    var box = document.getElementById('duelViews');
+    box.innerHTML = ''; dviews = {};
+    if (!duel) { box.classList.remove('on'); return; }
+    duel.ids.forEach(function (id, i) {
+      if (id === duelRoom.me) return;
+      var el = document.createElement('div'); el.className = 'dv'; el.style.borderColor = PC[i % 4];
+      el.setAttribute('data-testid', 'duel-view-' + i);
+      var c = document.createElement('canvas'); el.appendChild(c);
+      var nm = document.createElement('div'); nm.className = 'nm'; el.appendChild(nm);
+      box.appendChild(el);
+      dviews[id] = { el: el, cv: c, nm: nm, tw: [[0, 0, 0, 1, 1, hueFor(0)]], cur: null, curAt: 0, col: PC[i % 4] };
+    });
+    box.classList.add('on');
+  }
+  function dvSlab(g, P, cx, cz, lvl, w, d, hue, alpha) {
+    var a = P(cx - w / 2, cz - d / 2, lvl), b = P(cx + w / 2, cz - d / 2, lvl), c = P(cx + w / 2, cz + d / 2, lvl), e = P(cx - w / 2, cz + d / 2, lvl), th = P.th;
+    g.globalAlpha = alpha == null ? 1 : alpha;
+    g.fillStyle = 'hsl(' + hue + ',62%,38%)';
+    g.beginPath(); g.moveTo(e.x, e.y); g.lineTo(c.x, c.y); g.lineTo(c.x, c.y + th); g.lineTo(e.x, e.y + th); g.closePath(); g.fill();
+    g.fillStyle = 'hsl(' + hue + ',62%,30%)';
+    g.beginPath(); g.moveTo(c.x, c.y); g.lineTo(b.x, b.y); g.lineTo(b.x, b.y + th); g.lineTo(c.x, c.y + th); g.closePath(); g.fill();
+    g.fillStyle = 'hsl(' + hue + ',70%,58%)';
+    g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineTo(c.x, c.y); g.lineTo(e.x, e.y); g.closePath(); g.fill();
+    if (josh.complete && josh.naturalWidth) {
+      g.save(); g.clip();
+      var mx = (a.x + c.x) / 2, my = (a.y + c.y) / 2, r = Math.min(Math.abs(b.x - e.x), Math.abs(c.y - a.y) * 2) * 0.32;
+      g.globalAlpha *= 0.75; g.drawImage(josh, mx - r, my - r * 0.5, r * 2, r); g.restore();
+    }
+    g.globalAlpha = 1;
+  }
+  function duelDrawViews(now) {
+    if (!duel) return;
+    for (var id in dviews) {
+      var v = dviews[id], c = v.cv, dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var cw = c.clientWidth, ch = c.clientHeight;
+      if (!cw || !ch) continue;
+      if (c.width !== Math.round(cw * dpr)) { c.width = Math.round(cw * dpr); c.height = Math.round(ch * dpr); }
+      var g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.clearRect(0, 0, cw, ch);
+      var alive = duel.alive[id];
+      v.el.classList.toggle('out', !alive);
+      v.nm.textContent = (duel.names[id] || 'Rival') + ' · ' + (duel.scores[id] || 0) + (alive ? '' : ' ✖');
+      var S = Math.min(cw * 0.36, ch * 0.5), th = Math.max(4, S * 0.125);
+      var top = v.tw.length ? v.tw[v.tw.length - 1][0] : 0;
+      var camY = ch * 0.68 + Math.max(0, top - 2) * th;
+      var P = function (x, z, l) { return { x: cw / 2 + (x - z) * S, y: camY - l * th + (x + z) * 0.5 * S }; };
+      P.th = th;
+      for (var i = 0; i < v.tw.length; i++) { var b = v.tw[i]; dvSlab(g, P, b[1], b[2], b[0], b[3], b[4], b[5]); }
+      var k = v.cur;
+      if (k && alive && state !== 'count' && k.l === top + 1) {
+        var p = k.p + k.v * Math.min(0.25, (now - v.curAt) / 1000);
+        if (p > 1.2) p = 1.2; if (p < -1.2) p = -1.2;
+        dvSlab(g, P, k.x + (k.a === 0 ? p : 0), k.z + (k.a === 1 ? p : 0), k.l, k.w, k.d, k.h);
+      }
+    }
+  }
+  function duelOut() {
+    var at = Date.now() - (duel.t0 || Date.now());
+    save('stackJoshXP', (Number(ls('stackJoshXP', 0)) || 0) + score * 3 + perfectsRun * 2);
+    save('stackJoshPlays', (Number(ls('stackJoshPlays', 0)) || 0) + 1);
+    save('stackJoshPerfects', (Number(ls('stackJoshPerfects', 0)) || 0) + perfectsRun);
+    duelMarkOut(duelRoom.me, score, at);
+    duelRoom.send('out', { r: duel.round, s: score, at: at });
+  }
+  function duelMarkOut(id, s, at) {
+    if (!duel || !duel.alive[id]) return;
+    duel.alive[id] = false; duel.scores[id] = s; duel.outAt[id] = at;
+    duelPaintBar();
+    duelCheck();
+  }
+  function duelCheck() {
+    if (!duel || duel.done) return;
+    var alive = duel.ids.filter(function (id) { return duel.alive[id]; });
+    if (alive.length > 1) return;
+    duel.done = true;
+    var order = duel.ids.slice().sort(function (a, b) {
+      var aa = duel.alive[a] ? 1e12 : duel.outAt[a], bb = duel.alive[b] ? 1e12 : duel.outAt[b];
+      return (bb - aa) || ((duel.scores[b] || 0) - (duel.scores[a] || 0)) || (a < b ? -1 : 1);
+    });
+    var win = order[0];
+    duelWins[win] = (duelWins[win] || 0) + 1;
+    if (state === 'play') { state = 'over'; cur = null; }   /* survivor: freeze the tower where it stands */
+    if (win === duelRoom.me) save('stackJoshXP', (Number(ls('stackJoshXP', 0)) || 0) + 30);
+    duelRoom.endMatch();
+    duelPaintBar();
+    var iWon = win === duelRoom.me;
+    document.getElementById('dTitle').textContent = iWon ? 'You win! 🏆' : duel.names[win] + ' wins!';
+    document.getElementById('dSub').textContent = iWon ? 'Last Josh standing — ' + (duel.scores[win] || 0) + ' high.' : 'You stacked ' + (duel.scores[duelRoom.me] || 0) + ' high.';
+    document.getElementById('duelRank').innerHTML = order.map(function (id, i) {
+      var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1) + '.';
+      return '<li class="' + (id === duelRoom.me ? 'me' : '') + '"><span>' + medal + '</span><span>' + duelEsc(id === duelRoom.me ? 'You' : duel.names[id]) +
+        (duelWins[id] ? ' · 🏆' + duelWins[id] : '') + '</span><span>' + (duel.scores[id] || 0) + '</span></li>';
+    }).join('');
+    document.getElementById('dNext').style.display = duelRoom.isHost ? '' : 'none';
+    document.getElementById('dWait').style.display = duelRoom.isHost ? 'none' : '';
+    setTimeout(function () { if (duel && duel.done) show('pDuel', true); }, 650);
+  }
+  function duelBind(room) {
+    if (room.__sj) return; room.__sj = true;
+    room.on('h', function (d, from) {
+      if (!duel || duelRoom !== room || d.r !== duel.round || !duel.alive[from]) return;
+      duel.scores[from] = d.s; duelPaintBar();
+      if (d.tw && dviews[from]) { dviews[from].tw = d.tw; dviews[from].cur = null; }
+    });
+    room.on('c', function (d, from) {
+      if (!duel || duelRoom !== room || d.r !== duel.round || !dviews[from]) return;
+      dviews[from].cur = d; dviews[from].curAt = performance.now();
+    });
+    room.on('out', function (d, from) {
+      if (!duel || duelRoom !== room || d.r !== duel.round) return;
+      duelMarkOut(from, d.s, d.at);
+    });
+    room.on('left', function (p) {
+      if (!duel || duelRoom !== room || duel.ids.indexOf(p.id) === -1) return;
+      duelMarkOut(p.id, duel.scores[p.id] || 0, duel.t0 ? Date.now() - duel.t0 : 0);
+    });
+  }
+  function duelStart(room, data) {
+    duelBind(room);
+    if (duelRoom !== room) duelWins = {};
+    duelRoom = room;
+    duel = { round: data.round, ids: data.ids, names: data.names, alive: {}, scores: {}, outAt: {}, done: false, t0: 0, goAt: performance.now() + 3000 };
+    data.ids.forEach(function (id) { duel.alive[id] = true; duel.scores[id] = 0; });
+    ['pStart', 'pOver', 'pDuel', 'pBoard'].forEach(function (id) { show(id, false); });
+    reset(); spawn();
+    state = 'count';
+    duelPaintBar();
+    duelBuildViews();
+  }
+  function duelStop() {
+    duel = null; duelRoom = null; duelWins = {};
+    duelPaintBar();
+    duelBuildViews();
+    show('pDuel', false);
+    state = 'title'; reset(); spawn();
+  }
+  function openDuelLobby() {
+    if (!window.HubOnline) { alert('Online play needs an internet connection.'); return; }
+    show('pStart', false); show('pOver', false); show('pDuel', false);
+    HubOnline.openLobby({
+      game: 'stackjosh', title: 'Stack Duel', min: 2, max: 4,
+      theme: { bg: 'rgba(2,3,10,.82)', panel: '#0b102e', border: '#b26a2e', title: '#ffc069', accent: 'linear-gradient(180deg,#ff8f3d,#e26a00)',
+        shadow: '#6b2f00', ring: 'rgba(255,150,50,.35)', text: '#f2f4ff' },
+      onStart: duelStart,
+      onEnd: function () { if (duel || duelRoom) duelStop(); },
+      onClose: function () { show('pStart', true); }
+    });
+  }
+  document.getElementById('bOnline').onclick = openDuelLobby;
+  document.getElementById('dNext').onclick = function () { if (duelRoom && duelRoom.isHost) duelRoom.startMatch(); };
+  document.getElementById('dLobby').onclick = function () { show('pDuel', false); if (window.HubOnline) HubOnline.showRoom(); };
+  document.getElementById('dLeave').onclick = function () {
+    duelStop();
+    if (window.HubOnline) HubOnline.leave();
+    show('pStart', true);
+  };
+
+  function goHub() {
+    try { if (window.parent && window.parent !== window) { window.parent.location.href = '../../index.html'; return; } } catch (e) {}
+    location.href = '../../index.html';
+  }
+  document.getElementById('bPlay').onclick = startGame;
+  document.getElementById('bAgain').onclick = startGame;
+  document.getElementById('bShare').onclick = shareScore;
+  document.getElementById('bHub').onclick = goHub;
+  document.getElementById('bHub2').onclick = goHub;
+  document.getElementById('bBoard').onclick = function () { show('pStart', false); lbOpen(); };
+  document.getElementById('bBoard2').onclick = function () { show('pOver', false); lbOpen(); };
+  document.getElementById('bBoardX').onclick = function () {
+    show('pBoard', false);
+    show(state === 'over' ? 'pOver' : 'pStart', true);
+  };
+  document.getElementById('lbSave').onclick = function () {
+    var nm = lbCleanName(document.getElementById('lbName').value);
+    if (!nm) { lbNote('Pick a different name — that one is empty or not allowed.'); return; }
+    var b = lbPrefs();
+    b.name = nm; lbSavePrefs();
+    document.getElementById('lbName').value = nm;
+    lbNote('');
+    lbPush();
+    lbState('Joined as ' + nm, 'ok');
+    lbOpen();
+  };
+
+  /* the hub play page forwards game keys here when this iframe is not focused */
+  window.addEventListener('message', function (e) {
+    var d = e.data || {};
+    if (!d.hubKey) return;
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: d.hubKey, key: d.key || d.hubKey, bubbles: true, cancelable: true }));
+  });
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    makeBg();
+    if (state === 'title') { reset(); spawn(); }
+  }
+  window.addEventListener('resize', resize);
+
+  /* tiny state hook for automated testing (harmless in normal play) */
+  window.__sj = function () {
+    return { state: state, duel: !!duel, score: score, best: best, slabs: slabs.length,
+      pos: cur ? cur.pos : 0, size: cur ? (cur.axis === 'x' ? cur.w : cur.d) : 0,
+      axis: cur ? cur.axis : '', streak: streak };
+  };
+
+  resize();
+  reset(); spawn();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

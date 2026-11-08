@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1b2b6b">
+<title>Geo-Metry Dash</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#1b2b6b;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+  canvas{position:fixed;inset:0;display:block;width:100vw;height:100vh}
+  #hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 8px;z-index:2;pointer-events:none;font-weight:900;text-shadow:0 2px 6px rgba(0,0,0,.45)}
+  #bar{position:fixed;top:calc(env(safe-area-inset-top,0px) + 46px);left:50%;transform:translateX(-50%);width:min(60vw,420px);height:10px;background:rgba(255,255,255,.25);border-radius:6px;overflow:hidden;z-index:2;pointer-events:none}
+  #fill{height:100%;width:0;background:linear-gradient(90deg,#ffd24a,#ff8a3d)}
+  #over{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(10,18,50,.7);z-index:3;overflow:auto}
+  #over.on{display:flex}
+  .sheet{background:#fff;color:#14213d;border-radius:24px;padding:22px 20px;width:min(440px,100%);text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+  .sheet h1{font-size:28px;font-weight:900;margin-bottom:6px}
+  .sheet p{color:#5b6b8c;font-size:14px;line-height:1.45;margin-bottom:12px}
+  .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:6px 0 12px}
+  .opt{border:3px solid transparent;background:#eef4ff;border-radius:14px;padding:10px 12px;font:inherit;font-weight:800;color:#14213d;cursor:pointer;min-width:96px}
+  .opt.on{border-color:#2f7cff;background:#dbe9ff}
+  .opt:disabled{opacity:.45;cursor:not-allowed}
+  .skin{width:54px;height:54px;border-radius:10px;margin:0 auto 4px;border:3px solid #14213d;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:22px;overflow:hidden}
+  .skin img{width:100%;height:100%;object-fit:cover}
+  .btn{display:block;width:100%;font:inherit;font-weight:900;font-size:18px;border:0;border-radius:16px;padding:15px;color:#fff;background:#2f7cff;box-shadow:0 8px 20px rgba(47,124,255,.35);cursor:pointer;margin-top:8px}
+  #tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 8px);display:flex;gap:6px;background:rgba(255,255,255,.95);border-radius:22px;padding:6px 8px;z-index:2}
+  #tabs a{display:flex;flex-direction:column;align-items:center;min-width:64px;padding:4px 8px;border-radius:14px;color:#5b6b8c;font-size:12px;font-weight:800;text-decoration:none}
+  #tabs a.active{color:#2f7cff;background:#e8f1ff}
+  #editor{position:fixed;inset:0;display:none;flex-direction:column;background:#14213d;z-index:4;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+  #editor.on{display:flex}
+  #edtop{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px;background:#1b2b6b}
+  #edtop input{flex:1;min-width:120px;font:inherit;font-weight:700;padding:8px 10px;border-radius:10px;border:0}
+  #edtop select{font:inherit;font-weight:700;padding:8px;border-radius:10px;border:0}
+  .ebtn{font:inherit;font-weight:800;border:0;border-radius:10px;padding:8px 10px;background:#eef4ff;color:#14213d;cursor:pointer}
+  .ebtn.primary{background:#2f7cff;color:#fff}
+  .ebtn.on{background:#ffd24a}
+  #elen{font-weight:800;min-width:40px;text-align:center;color:#fff}
+  #ecwrap{flex:1;position:relative;min-height:0}
+  #ec{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+  #edbottom{display:flex;gap:6px;overflow-x:auto;padding:8px;background:#1b2b6b}
+  #edbottom .ebtn{flex:0 0 auto}
+  #ehint{color:#c9d6ff;font-size:12px;text-align:center;padding:4px}
+  #stopTest{position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:5;font:inherit;font-weight:900;border:0;border-radius:14px;padding:10px 14px;background:#ff5252;color:#fff;cursor:pointer}
+  #communityBox{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,18,50,.6);z-index:7;padding:16px}
+  #communityBox.on{display:flex}
+  #communityBox .sheet{max-height:86vh;overflow:auto}
+  #communityList{display:flex;flex-direction:column;gap:8px;margin:8px 0 14px}
+  #communityList .opt{text-align:left;white-space:normal}
+  #reportBtn{margin-top:8px;background:#ff6b6b}
+</style>
+</head>
+<body>
+<div id="hud"><span id="lvl">Sky Steps</span><span id="att">Attempt 1</span></div>
+<div id="bar"><div id="fill"></div></div>
+<canvas id="c"></canvas>
+
+<div id="over">
+  <div class="sheet">
+    <h1 id="otitle">Geo-Metry Dash</h1>
+    <p id="osub">Tap or hold to move. Portals change how you fly. Don't touch spikes, the ceiling, or the side of a block. Reach the end to finish.</p>
+    <div class="row" id="levels"></div>
+    <div class="row" id="custom"></div>
+    <p style="margin-bottom:4px;font-weight:800;color:#14213d">Choose your cube</p>
+    <div class="row" id="skins"></div>
+    <button class="btn" id="go">Play</button>
+    <button class="btn" id="reportBtn" style="display:none">🚩 Report level</button>
+  </div>
+</div>
+
+<div id="communityBox"><div class="sheet">
+  <h1>🌐 Community levels</h1>
+  <p>Levels other players published. Pick one to play.</p>
+  <div id="communityList"></div>
+  <button class="btn" id="communityClose">Close</button>
+</div></div>
+
+<nav id="tabs">
+  <a href="#" class="active"><span>🟦</span>Play</a>
+  <a href="../../" id="hubLink"><span>🏠</span>Hub</a>
+</nav>
+
+<div id="editor">
+  <div id="edtop">
+    <button class="ebtn" id="ecancel">✕</button>
+    <input id="ename" maxlength="24" placeholder="Level name">
+    <select id="estart"><option value="cube">Cube</option><option value="ship">Ship</option><option value="wave">Wave</option><option value="ball">Ball</option><option value="ufo">UFO</option></select>
+    <button class="ebtn" id="elenm">−10</button><span id="elen"></span><button class="ebtn" id="elenp">+10</button>
+    <button class="ebtn" id="etest">▶ Test</button>
+    <button class="ebtn" id="epub">☁️ Publish</button>
+    <button class="ebtn primary" id="esave">Save</button>
+  </div>
+  <div id="ecwrap"><canvas id="ec"></canvas></div>
+  <div id="edbottom"></div>
+  <div id="ehint">Tap to place or remove · drag to scroll</div>
+</div>
+<button id="stopTest" style="display:none">✖ Stop test</button>
+
+<script src="../../js/sound-guard.js"></script>
+<script src="../../js/supa-config.js"></script>
+<script>
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const overEl = document.getElementById('over'), goBtn = document.getElementById('go');
+const lvlEl = document.getElementById('lvl'), attEl = document.getElementById('att'), fillEl = document.getElementById('fill');
+const otitle = document.getElementById('otitle'), osub = document.getElementById('osub');
+if (location.hostname.endsWith('itch.io')) document.getElementById('hubLink').href = 'https://biggamehub.itch.io/';
+
+const MENU_TEXT = 'Tap or hold to move. Portals change how you fly. Don\'t touch spikes, the ceiling, or the side of a block. Reach the end to finish.';
+
+// ---- skins: Amaan has his photo; the other two are plain cubes until permission is confirmed ----
+const SKINS = [
+  { id: 'amaan', name: 'Amaan', img: '../amaan/amaan.jpg', color: '#2f7cff', ready: true },
+  { id: 'dhyiaan', name: 'Dhyiaan', img: 'dhyiaan.jpg', color: '#3b2a6b', ready: true },
+  { id: 'bartu', name: 'Bartu', img: 'bartu.jpg', color: '#ffd24a', ready: true }
+];
+// preload every skin photo so the cube draws straight away
+SKINS.forEach(function (S) { if (S.img) { S.imgObj = new Image(); S.imgObj.src = S.img; } });
+
+// ---- game modes ----
+// pad = how far the hitbox is inset from the sprite on each side (as a fraction of the cube size).
+// Geometry Dash hitboxes are smaller than the sprites, so every mode uses an inset box.
+const MODES = {
+  cube: { label: 'Cube', pad: 0.2,  color: '#ffffff' },
+  ship: { label: 'Ship', pad: 0.3,  color: '#ffb74d' },
+  wave: { label: 'Wave', pad: 0.36, color: '#4dd0e1' },
+  ball: { label: 'Ball', pad: 0.24, color: '#ef5350' },
+  ufo:  { label: 'UFO',  pad: 0.26, color: '#9ccc65' }
+};
+const DEBUG_HITBOX = false;   // set true to draw hitboxes while tuning
+
+// ---- levels ----
+// 's' = floor spike at x, 'c' = ceiling spike at x, 'b' = block at x with height h (cube only),
+// 'p' = portal at x that switches to mode m. Levels start in 'start' mode (default cube).
+const LEVELS = [
+  { name: "Sky Steps", len: 120, top: '#4fc3f7', bot: '#1b2b6b', objs: [
+      ["s",8], ["s",14], ["b",19,1], ["b",22,2], ["s",26], ["s",27], ["b",31,1], ["s",36], 
+      ["b",40,1], ["b",43,2], ["b",44,1], ["b",45,2], ["b",46,3], ["s",51], ["s",52], ["b",56,1], 
+      ["s",60], ["b",64,2], ["s",68], ["s",70], ["b",74,1], ["b",78,1], ["s",84], ["s",85], ["s",86], 
+      ["b",92,2], ["b",93,1], ["b",94,2], ["b",95,3], ["s",100], ["s",104], ["b",108,1], ["s",112], 
+      ["s",114]] },
+  { name: "Spike Valley", len: 150, top: '#b388ff', bot: '#311b5c', objs: [
+      ["s",6], ["s",7], ["s",11], ["s",12], ["s",13], ["b",17,1], ["s",20], ["s",21], ["b",25,2], 
+      ["s",29], ["s",30], ["s",31], ["s",36], ["b",39,1], ["s",43], ["s",44], ["b",48,1], ["b",50,2], 
+      ["s",54], ["s",55], ["s",59], ["s",60], ["s",61], ["b",65,1], ["s",70], ["s",71], ["b",73,1], 
+      ["b",74,2], ["b",75,3], ["s",80], ["s",84], ["s",85], ["b",89,1], ["s",94], ["s",95], ["s",96], 
+      ["b",100,2], ["s",105], ["s",106], ["s",112], ["s",113], ["s",118], ["b",124,1], ["s",128], 
+      ["s",129], ["s",130], ["s",137], ["s",138], ["s",144]] },
+  { name: "Block Rush", len: 170, top: '#ff8a65', bot: '#5d1f1f', objs: [
+      ["b",6,2], ["b",9,2], ["b",10,1], ["b",11,2], ["b",12,3], ["s",16], ["b",19,1], ["b",20,1], 
+      ["b",21,2], ["b",22,3], ["b",25,2], ["s",28], ["s",29], ["b",33,1], ["b",36,2], ["b",37,2], 
+      ["b",38,3], ["b",39,4], ["s",44], ["s",45], ["b",49,2], ["b",50,1], ["b",51,2], ["b",52,3], 
+      ["s",56], ["b",59,1], ["b",62,2], ["b",63,1], ["b",64,2], ["b",65,3], ["s",70], ["b",74,1], 
+      ["s",78], ["s",79], ["b",81,1], ["b",82,2], ["b",83,3], ["b",84,2], ["b",85,3], ["b",86,4], 
+      ["s",91], ["b",95,2], ["b",98,1], ["s",103], ["s",104], ["b",108,2], ["b",109,1], ["b",110,2], 
+      ["b",111,3], ["b",114,2], ["s",119], ["b",123,1], ["s",127], ["b",129,1], ["b",130,2], 
+      ["b",131,3], ["s",136], ["s",137], ["b",141,2], ["b",142,2], ["b",143,3], ["b",144,4], 
+      ["s",151], ["s",152], ["b",156,1], ["s",162]] },
+  { name: "Ship Ride", len: 120, top: '#ffb74d', bot: '#3e2a6b', start: 'cube', objs: [
+      ["p",3,"ship"], ["s",10], ["c",14], ["s",18], ["s",19], ["c",22], ["s",26], ["c",30], ["c",31], 
+      ["s",34], ["c",38], ["s",42], ["s",44], ["c",48], ["s",52], ["c",56], ["s",60], ["c",64], 
+      ["s",66], ["s",67], ["c",72], ["s",78], ["c",82], ["s",86], ["c",90], ["s",94], ["c",98], 
+      ["s",104], ["c",108], ["s",112], ["c",116]] },
+  { name: "Wave Tunnel", len: 130, top: '#26c6da', bot: '#0d2b44', start: 'cube', objs: [
+      ["p",3,"wave"], ["s",10], ["s",11], ["c",14], ["c",15], ["s",18], ["c",22], ["s",24], ["c",26], 
+      ["s",28], ["s",30], ["c",32], ["c",34], ["s",36], ["c",40], ["s",44], ["c",46], ["s",50], 
+      ["c",54], ["s",56], ["s",57], ["c",60], ["c",62], ["s",66], ["c",70], ["s",74], ["c",78], 
+      ["s",80], ["c",84], ["s",88], ["c",92], ["s",94], ["s",96], ["c",100], ["s",104], ["c",108], 
+      ["s",112], ["c",116], ["s",120], ["c",124], ["s",128]] },
+  { name: "Mode Mash", len: 150, top: '#ec407a', bot: '#2a0f3c', start: 'cube', objs: [
+      ["b",6,1], ["s",9], ["b",12,2], ["s",15], ["s",16], ["p",18,"ball"], ["s",22], ["c",25], 
+      ["s",28], ["c",31], ["s",33], ["c",36], ["s",40], ["c",44], ["s",45], ["p",48,"ufo"], ["s",52], 
+      ["s",55], ["s",58], ["s",60], ["p",64,"ship"], ["c",68], ["s",72], ["c",74], ["s",78], 
+      ["c",80], ["s",82], ["c",86], ["s",90], ["p",94,"wave"], ["c",98], ["s",101], ["c",104], 
+      ["s",107], ["c",110], ["s",113], ["c",116], ["s",120], ["c",124], ["s",128], ["p",132,"cube"], 
+      ["b",136,2], ["s",140], ["s",143], ["b",144,1], ["b",145,2], ["b",146,3]] }
+];
+
+// ---- custom levels (saved in this browser) ----
+let CUSTOM = [];
+const CUSTOM_COLORS = [['#ff9a8b','#4a154b'],['#a8edea','#1d4e6b'],['#fddb92','#5a3a0a'],['#c3cfe2','#2c3e60']];
+function ALL() { return LEVELS.concat(CUSTOM); }
+let testLevel = null;
+let communityLevel = null, communityId = null;
+function lvl() { return testLevel || communityLevel || ALL()[levelIdx]; }
+function loadCustom() { try { const v = JSON.parse(localStorage.getItem('geoMetryCustom') || '[]'); CUSTOM = Array.isArray(v) ? v : []; } catch (e) { CUSTOM = []; } }
+function saveCustom() { try { localStorage.setItem('geoMetryCustom', JSON.stringify(CUSTOM)); return true; } catch (e) { return false; } }
+loadCustom();
+
+let W, H, dpr = 1, state = 'menu', levelIdx = 0, skinIdx = 0, attempts = 1;
+let d = 0, prevD = 0, y = 0, vy = 0, rot = 0, onGround = false, holding = false, lastT = 0, flashT = 0;
+let mode = 'cube', gs = 1;                       // gs = gravity direction for the ball (1 down, -1 up)
+const unit = () => H * 0.075;                    // cube size (smaller = more of the level on screen)
+const groundY = () => H * 0.78;
+const ceilY = () => H * 0.1;                     // top of the playable band
+const cubeX = () => W * 0.22;
+const speed = () => H * 0.5;                     // scroll speed
+const grav = () => H * 4.8;                      // cube / ball gravity
+const jumpV = () => -H * 1.6;                    // cube jump (about 3.5 units high; taller blocks have steps)
+let jumpBuf = 0, coyote = 0;                     // jump buffer and coyote time, in seconds
+
+function resize() { dpr = window.devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); if (state === 'menu') y = groundY() - unit(); }
+addEventListener('resize', resize); resize();
+
+function recordWin() {
+  try {
+    var n = function (k) { return Number(localStorage.getItem(k)) || 0; };
+    localStorage.setItem('geoMetryPlays', n('geoMetryPlays') + 1);
+    localStorage.setItem('geoMetryXP', n('geoMetryXP') + 20);
+    if (levelIdx + 1 > n('geoMetryBest')) localStorage.setItem('geoMetryBest', String(levelIdx + 1));
+  } catch (e) {}
+}
+
+// ---- menus ----
+function buildMenu() {
+  const lv = document.getElementById('levels'); lv.innerHTML = '';
+  ALL().forEach(function (L, i) {
+    const b = document.createElement('button'); b.className = 'opt' + (i === levelIdx ? ' on' : '');
+    b.textContent = (i + 1) + '. ' + (i >= LEVELS.length ? '★ ' : '') + L.name;
+    b.onclick = function () { levelIdx = i; buildMenu(); };
+    lv.appendChild(b);
+  });
+  const cu = document.getElementById('custom'); cu.innerHTML = '';
+  const mk = function (t, fn, dis) { const b = document.createElement('button'); b.className = 'opt'; b.textContent = t; b.disabled = !!dis; b.onclick = fn; cu.appendChild(b); };
+  const isCustom = levelIdx >= LEVELS.length;
+  mk('✏️ New level', function () { openEditor(null); });
+  mk('🌐 Community', function () { openCommunity(); });
+  mk('Edit', function () { openEditor(ALL()[levelIdx]); }, !isCustom);
+  mk('Delete', function () {
+    if (!confirm('Delete this level?')) return;
+    CUSTOM.splice(levelIdx - LEVELS.length, 1); saveCustom(); levelIdx = 0; buildMenu();
+  }, !isCustom);
+  const sk = document.getElementById('skins'); sk.innerHTML = '';
+  SKINS.forEach(function (S, i) {
+    const b = document.createElement('button'); b.className = 'opt' + (i === skinIdx ? ' on' : '');
+    const face = S.img ? '<div class="skin"><img src="' + S.img + '" alt=""></div>' : '<div class="skin" style="background:' + S.color + '">' + S.letter + '</div>';
+    b.innerHTML = face + S.name;
+    b.onclick = function () { skinIdx = i; buildMenu(); };
+    sk.appendChild(b);
+  });
+}
+function showMenu() {
+  state = 'menu';
+  otitle.textContent = 'Geo-Metry Dash';
+  osub.textContent = MENU_TEXT;
+  goBtn.textContent = 'Play';
+  buildMenu();
+  overEl.classList.add('on');
+}
+
+// ---- run control ----
+function updateLabel() { lvlEl.textContent = lvl().name + ' · ' + MODES[mode].label; }
+function setMode(m) {
+  mode = m; gs = 1; vy = 0; rot = 0; onGround = false;
+  // lift off the floor so flying modes don't start with an instant drop
+  if (m !== 'cube') y = Math.min(y, groundY() - unit() * 3);
+  updateLabel();
+}
+function resetRun() {
+  const L = lvl();
+  d = 0; prevD = 0; vy = 0; rot = 0; gs = 1; flashT = 0;
+  mode = L.start || 'cube';
+  onGround = mode === 'cube';
+  y = mode === 'cube' ? groundY() - unit() : H * 0.4;
+  updateLabel();
+}
+function startLevel() {
+  resetRun();
+  attempts = 1;
+  attEl.textContent = 'Attempt ' + attempts;
+  state = 'play';
+  overEl.classList.remove('on');
+}
+function die() {
+  attempts++;
+  resetRun();
+  flashT = 0.35;
+  attEl.textContent = 'Attempt ' + attempts;
+}
+function win() {
+  state = 'won';
+  if (testLevel) {
+    otitle.textContent = 'Test run complete! 🎉';
+    osub.textContent = 'Your level can be finished. Back to the editor to keep building.';
+    goBtn.textContent = 'Back to editor';
+    overEl.classList.add('on');
+    return;
+  }
+  if (communityLevel) {
+    otitle.textContent = 'Level complete! 🎉';
+    osub.textContent = communityLevel.name + ' by ' + communityLevel.author + ' · done in ' + attempts + ' attempt' + (attempts === 1 ? '' : 's') + '.';
+    goBtn.textContent = 'Back to menu';
+    document.getElementById('reportBtn').style.display = 'block';
+    overEl.classList.add('on');
+    return;
+  }
+  if (levelIdx < LEVELS.length) recordWin();
+  const more = levelIdx + 1 < ALL().length;
+  otitle.textContent = 'Level complete! 🎉';
+  osub.textContent = lvl().name + ' done in ' + attempts + ' attempt' + (attempts === 1 ? '' : 's') + '.';
+  goBtn.textContent = more ? 'Next level' : 'Back to menu';
+  if (more) levelIdx++;
+  overEl.classList.add('on');
+}
+
+// ---- geometry helpers for hitboxes ----
+function inTri(p, t) {
+  const a = t[0], b = t[1], c = t[2];
+  const d1 = (p[0] - b[0]) * (a[1] - b[1]) - (a[0] - b[0]) * (p[1] - b[1]);
+  const d2 = (p[0] - c[0]) * (b[1] - c[1]) - (b[0] - c[0]) * (p[1] - c[1]);
+  const d3 = (p[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (p[1] - a[1]);
+  const neg = d1 < 0 || d2 < 0 || d3 < 0, pos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(neg && pos);
+}
+// rect r = {l, r, t, b}; triangle t = [p0, p1, p2]
+function hitTri(t, r) {
+  const corners = [[r.l, r.t], [r.r, r.t], [r.l, r.b], [r.r, r.b]];
+  for (const c of corners) if (inTri(c, t)) return true;
+  const edges = [[t[0], t[1]], [t[1], t[2]], [t[2], t[0]]];
+  for (const e of edges) {
+    for (let i = 0; i <= 8; i++) {
+      const k = i / 8, px = e[0][0] + (e[1][0] - e[0][0]) * k, py = e[0][1] + (e[1][1] - e[0][1]) * k;
+      if (px > r.l && px < r.r && py > r.t && py < r.b) return true;
+    }
+  }
+  return false;
+}
+
+// ---- physics ----
+function update(dt) {
+  const L = lvl(), u = unit();
+  prevD = d;
+  d += speed() * dt;
+
+  // portals: switch mode when the cube crosses them
+  for (const o of L.objs) {
+    if (o[0] !== 'p') continue;
+    const px = o[1] * u;
+    if (prevD + u * 0.5 < px && d + u * 0.5 >= px) setMode(o[2]);
+  }
+
+  const M = MODES[mode];
+  const pad = M.pad * u;
+
+  // movement for the current mode
+  if (mode === 'cube') {
+    if (onGround) coyote = 0.12; else coyote -= dt;
+    if (jumpBuf > 0) jumpBuf -= dt;
+    if ((holding || jumpBuf > 0) && (onGround || coyote > 0)) { vy = jumpV(); onGround = false; jumpBuf = 0; coyote = 0; }
+    vy += grav() * dt;
+  } else if (mode === 'ship') {
+    vy += (holding ? -H * 4.2 : H * 3.4) * dt;
+    vy = Math.max(-H * 1.1, Math.min(H * 1.1, vy));
+  } else if (mode === 'wave') {
+    vy = (holding ? -1 : 1) * speed() * 0.85;   // fixed diagonal, hold to go up
+  } else if (mode === 'ball') {
+    vy += grav() * gs * dt;
+  } else if (mode === 'ufo') {
+    vy += H * 2.6 * dt;
+  }
+  y += vy * dt;
+  onGround = false;
+
+  // hitbox: an inset box inside the sprite
+  const hbL = d + pad, hbR = d + u - pad, hbT = y + pad, hbB = y + u - pad;
+
+  // blocks (cube sections only): land on top, die on the front
+  let floor = groundY() - u;
+  const ceil = ceilY();
+  if (mode === 'cube') {
+    for (const o of L.objs) {
+      if (o[0] !== 'b') continue;
+      const bl = o[1] * u, br = bl + u, bt = groundY() - o[2] * u;
+      if (hbR > bl + u * 0.1 && hbL < br - u * 0.1) {
+        if (vy >= 0 && hbB <= bt + u * 0.6 && hbB >= bt - u * 1.5) floor = Math.min(floor, bt - u);
+        else if (hbB > bt + u * 0.6) { die(); return; }
+      }
+    }
+  }
+
+  // spikes: floor spikes ('s') and ceiling spikes ('c'), checked against the hitbox triangle
+  for (const o of L.objs) {
+    if (o[0] !== 's' && o[0] !== 'c') continue;
+    const x0 = o[1] * u;
+    if (x0 > hbR + u || x0 + u < hbL - u) continue;
+    const tri = o[0] === 's'
+      ? [[x0 + u * 0.25, groundY()], [x0 + u * 0.75, groundY()], [x0 + u * 0.5, groundY() - u * 0.7]]
+      : [[x0 + u * 0.25, ceil], [x0 + u * 0.75, ceil], [x0 + u * 0.5, ceil + u * 0.7]];
+    if (hitTri(tri, { l: hbL, r: hbR, t: hbT, b: hbB })) { die(); return; }
+  }
+
+  // surfaces per mode
+  if (mode === 'ship' || mode === 'wave') {
+    // flying modes: touching the floor or ceiling kills
+    if (hbT < ceil || hbB > groundY()) { die(); return; }
+  } else if (mode === 'ball') {
+    // ball can roll on the floor or the ceiling depending on gravity
+    if (gs > 0) { if (y >= floor) { y = floor; vy = 0; onGround = true; } }
+    else if (y <= ceil) { y = ceil; vy = 0; onGround = true; }
+  } else {
+    // cube and UFO: solid floor (and blocks); the ceiling kills
+    if (hbT < ceil) { die(); return; }
+    if (y >= floor) { y = floor; vy = 0; onGround = true; }
+  }
+
+  // rotation
+  if (mode === 'cube') {
+    if (onGround) rot = Math.round(rot / (Math.PI / 2)) * (Math.PI / 2);
+    else rot += dt * 5.2;
+  } else if (mode === 'ball') {
+    rot += dt * 6 * gs;
+  }
+
+  if (d / u >= L.len) win();
+}
+
+// ---- drawing ----
+function drawBackground(L) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, L.top); g.addColorStop(1, L.bot);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(255,255,255,.06)';
+  const off = (d * 0.3) % (H * 0.3);
+  for (let x = -off; x < W; x += H * 0.3) ctx.fillRect(x, 0, H * 0.14, H);
+  ctx.fillStyle = '#1b1b3a'; ctx.fillRect(0, groundY(), W, H - groundY());
+  ctx.fillStyle = '#ffd24a'; ctx.fillRect(0, groundY(), W, Math.max(3, H * 0.008));
+}
+function drawCeiling() {
+  ctx.fillStyle = '#0e1638'; ctx.fillRect(0, 0, W, ceilY());
+  ctx.fillStyle = 'rgba(255,210,74,.5)'; ctx.fillRect(0, ceilY(), W, 2);
+}
+
+function drawSpike(x, u) {
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#1b1b3a'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x, groundY()); ctx.lineTo(x + u / 2, groundY() - u); ctx.lineTo(x + u, groundY()); ctx.closePath(); ctx.fill(); ctx.stroke();
+}
+function drawCeilSpike(x, u) {
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#1b1b3a'; ctx.lineWidth = 3;
+  const top = ceilY();
+  ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x + u / 2, top + u); ctx.lineTo(x + u, top); ctx.closePath(); ctx.fill(); ctx.stroke();
+}
+function drawBlock(x, h, u) {
+  const top = groundY() - h * u;
+  ctx.fillStyle = '#263a8f'; ctx.strokeStyle = '#0c1640'; ctx.lineWidth = 4;
+  ctx.fillRect(x, top, u, h * u); ctx.strokeRect(x, top, u, h * u);
+  ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(x + 6, top + 6, u - 12, 8);
+}
+function drawPortal(x, m, u) {
+  const P = MODES[m];
+  ctx.save();
+  ctx.globalAlpha = 0.35; ctx.fillStyle = P.color;
+  ctx.fillRect(x, ceilY(), u * 0.4, groundY() - ceilY());
+  ctx.restore();
+  ctx.fillStyle = P.color; ctx.strokeStyle = '#0c1640'; ctx.lineWidth = 4;
+  ctx.font = '900 ' + Math.floor(u * 0.42) + 'px system-ui';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeText(P.label, x + u * 0.2, ceilY() + u * 0.7);
+  ctx.fillText(P.label, x + u * 0.2, ceilY() + u * 0.7);
+}
+
+// round face used by every game mode: the photo cropped to a square, with a white ring
+function drawFace(S, cx, cy, r) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+  const img = S.imgObj;
+  if (S.img && img && img.complete && img.naturalWidth) {
+    const iw = img.naturalWidth, ih = img.naturalHeight, side = Math.min(iw, ih);
+    ctx.drawImage(img, (iw - side) / 2, (ih - side) / 2, side, side, cx - r, cy - r, r * 2, r * 2);
+  } else {
+    ctx.fillStyle = S.color; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = '#ffffff'; ctx.font = '900 ' + Math.floor(r * 1.2) + 'px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(S.letter || S.name[0], cx, cy + 1);
+  }
+  ctx.restore();
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(2, r * 0.18);
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+}
+
+function drawCube(x, yy, u, angle) {
+  const S = SKINS[skinIdx];
+  ctx.save();
+  ctx.translate(x + u / 2, yy + u / 2); ctx.rotate(angle);
+  ctx.fillStyle = S.color; ctx.strokeStyle = '#0c1640'; ctx.lineWidth = 4;
+  ctx.fillRect(-u / 2, -u / 2, u, u); ctx.strokeRect(-u / 2, -u / 2, u, u);
+  drawFace(S, 0, 0, u * 0.36);
+  ctx.restore();
+}
+
+function drawPlayer(x, yy, u) {
+  if (mode === 'cube') { drawCube(x, yy, u, rot); return; }
+  const S = SKINS[skinIdx];
+  ctx.save();
+  ctx.translate(x + u / 2, yy + u / 2);
+  ctx.strokeStyle = '#0c1640'; ctx.lineWidth = 4; ctx.fillStyle = S.color;
+  if (mode === 'ship') {
+    ctx.rotate(Math.max(-0.5, Math.min(0.5, vy / (H * 1.6))));
+    // thrust flame while the player holds the button
+    if (holding) {
+      const fl = u * (0.4 + Math.random() * 0.22);
+      ctx.fillStyle = '#ffb347';
+      ctx.beginPath(); ctx.moveTo(-u * 0.36, -u * 0.12); ctx.lineTo(-u * 0.36 - fl, 0); ctx.lineTo(-u * 0.36, u * 0.12); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ffe082';
+      ctx.beginPath(); ctx.moveTo(-u * 0.36, -u * 0.05); ctx.lineTo(-u * 0.36 - fl * 0.55, 0); ctx.lineTo(-u * 0.36, u * 0.05); ctx.closePath(); ctx.fill();
+    }
+    // top fin and lower wing
+    ctx.fillStyle = '#1b2b6b';
+    ctx.beginPath(); ctx.moveTo(-u * 0.12, -u * 0.18); ctx.lineTo(-u * 0.34, -u * 0.42); ctx.lineTo(u * 0.02, -u * 0.16); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-u * 0.1, u * 0.14); ctx.lineTo(-u * 0.3, u * 0.36); ctx.lineTo(u * 0.06, u * 0.16); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // rounded hull with a pointed nose
+    ctx.fillStyle = S.color;
+    ctx.beginPath();
+    ctx.moveTo(-u * 0.4, -u * 0.2);
+    ctx.quadraticCurveTo(u * 0.2, -u * 0.3, u * 0.5, 0);
+    ctx.quadraticCurveTo(u * 0.2, u * 0.3, -u * 0.4, u * 0.2);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // cockpit window with the face
+    drawFace(S, u * 0.1, -u * 0.02, u * 0.18);
+  } else if (mode === 'wave') {
+    ctx.rotate(Math.atan2(vy, speed()));
+    ctx.beginPath(); ctx.moveTo(u * 0.5, 0); ctx.lineTo(-u * 0.4, -u * 0.4); ctx.lineTo(-u * 0.2, 0); ctx.lineTo(-u * 0.4, u * 0.4); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    drawFace(S, -u * 0.05, 0, u * 0.2);
+  } else if (mode === 'ball') {
+    ctx.rotate(rot);
+    ctx.beginPath(); ctx.arc(0, 0, u * 0.45, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-u * 0.45, 0); ctx.lineTo(u * 0.45, 0); ctx.stroke();
+    ctx.rotate(-rot);            // undo the spin so the face stays upright
+    drawFace(S, 0, 0, u * 0.3);
+  } else if (mode === 'ufo') {
+    ctx.rotate(Math.max(-0.3, Math.min(0.3, vy / (H * 2))));
+    ctx.fillStyle = '#2b2f5c';
+    ctx.beginPath(); ctx.ellipse(0, u * 0.12, u * 0.5, u * 0.16, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = S.color;
+    ctx.beginPath(); ctx.arc(0, -u * 0.08, u * 0.26, Math.PI, 0); ctx.fill(); ctx.stroke();
+    drawFace(S, 0, -u * 0.13, u * 0.15);
+  }
+  ctx.restore();
+}
+
+function draw() {
+  if (state === 'menu') { drawBackground(lvl()); drawCube(cubeX(), groundY() - unit(), unit(), 0); return; }
+  const L = lvl(), u = unit();
+  drawBackground(L);
+  drawCeiling();
+  for (const o of L.objs) {
+    const x = cubeX() + o[1] * u - d;
+    if (x > W + u || x < -u * 2) continue;
+    if (o[0] === 's') drawSpike(x, u);
+    else if (o[0] === 'c') drawCeilSpike(x, u);
+    else if (o[0] === 'b') drawBlock(x, o[2], u);
+    else if (o[0] === 'p') drawPortal(x, o[2], u);
+  }
+  // finish line
+  const fx = cubeX() + L.len * u - d;
+  if (fx < W + u) { ctx.fillStyle = '#ffffff'; ctx.fillRect(fx, groundY() - H * 0.35, 6, H * 0.35); }
+  drawPlayer(cubeX(), y, u);
+  if (DEBUG_HITBOX) {
+    const p = MODES[mode].pad * u;
+    ctx.strokeStyle = '#00ff66'; ctx.lineWidth = 2;
+    ctx.strokeRect(cubeX() + p, y + p, u - 2 * p, u - 2 * p);
+  }
+  // death flash
+  if (flashT > 0) { ctx.fillStyle = 'rgba(255,255,255,' + Math.min(0.6, flashT) + ')'; ctx.fillRect(0, 0, W, H); }
+  fillEl.style.width = Math.min(100, (d / (L.len * u)) * 100) + '%';
+}
+
+function frame(t) {
+  const dt = Math.min(0.033, (t - lastT) / 1000 || 0); lastT = t;
+  if (state === 'play') update(dt);
+  if (flashT > 0) flashT -= dt;
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// ---- input ----
+function press() {
+  holding = true;
+  if (state !== 'play') return;
+  if (mode === 'cube') { jumpBuf = 0.15; }
+  else if (mode === 'ball') { gs = -gs; vy = 0; onGround = false; }   // tap flips gravity
+  else if (mode === 'ufo') { vy = -H * 1.1; }                          // tap = small flap
+}
+function release() { holding = false; }
+cv.addEventListener('pointerdown', function (e) { e.preventDefault(); press(); });
+addEventListener('pointerup', release);
+addEventListener('pointercancel', release);
+addEventListener('keydown', function (e) { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); press(); } });
+addEventListener('keyup', function (e) { if (e.code === 'Space' || e.code === 'ArrowUp') release(); });
+
+goBtn.onclick = function () {
+  if (state === 'won' && testLevel) { leaveTest(); return; }
+  if (state === 'won' && communityLevel) {
+    communityLevel = null; communityId = null;
+    document.getElementById('reportBtn').style.display = 'none';
+    showMenu(); return;
+  }
+  if (state === 'won' && goBtn.textContent === 'Back to menu') { showMenu(); return; }
+  startLevel();
+};
+
+// ---- level editor ----
+const edEl = document.getElementById('editor'), ec = document.getElementById('ec'), ectx = ec.getContext('2d');
+const stopTestBtn = document.getElementById('stopTest');
+let editLevel = null, camX = -2, camStart = 0, ptrId = null, ptrX0 = 0, dragging = false, tool = 's', eW = 0, eH = 0;
+const TOOLS = [
+  ['s', '🔺 Spike'], ['c', '🔻 Ceiling spike'], ['b1', '▮ Block 1'], ['b2', '▮ Block 2'], ['b3', '▮ Block 3'], ['b4', '▮ Block 4'],
+  ['p:cube', 'Cube portal'], ['p:ship', 'Ship portal'], ['p:wave', 'Wave portal'], ['p:ball', 'Ball portal'], ['p:ufo', 'UFO portal'],
+  ['x', '✖ Erase']
+];
+function eu() { return eH * 0.12; }
+function clampCam(c) { return Math.max(-3, Math.min(editLevel.len + 15, c)); }
+
+function resizeEditor() {
+  const r = ec.getBoundingClientRect();
+  eW = r.width; eH = r.height;
+  ec.width = eW * dpr; ec.height = eH * dpr;
+  ectx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', function () { if (edEl.classList.contains('on')) { resizeEditor(); drawEditor(); } });
+
+function updateEditorTop() { document.getElementById('elen').textContent = editLevel.len; }
+
+function buildPalette() {
+  const bar = document.getElementById('edbottom'); bar.innerHTML = '';
+  TOOLS.forEach(function (t) {
+    const b = document.createElement('button');
+    b.className = 'ebtn' + (t[0] === tool ? ' on' : '');
+    b.textContent = t[1];
+    b.onclick = function () { tool = t[0]; buildPalette(); };
+    bar.appendChild(b);
+  });
+}
+
+function drawEditor() {
+  if (!editLevel || !edEl.classList.contains('on')) return;
+  const u = eu(), gy = eH * 0.82, cy = eH * 0.12, L = editLevel;
+  ectx.fillStyle = '#1b2b6b'; ectx.fillRect(0, 0, eW, eH);
+  ectx.fillStyle = '#0e1638'; ectx.fillRect(0, 0, eW, cy);
+  ectx.fillStyle = '#1b1b3a'; ectx.fillRect(0, gy, eW, eH - gy);
+  ectx.fillStyle = '#ffd24a'; ectx.fillRect(0, gy, eW, 3);
+
+  // grid: one cell per unit, numbers every 5
+  const c0 = Math.floor(camX), c1 = Math.ceil(camX + eW / u) + 1;
+  ectx.strokeStyle = 'rgba(255,255,255,.12)'; ectx.lineWidth = 1;
+  for (let c = c0; c <= c1; c++) {
+    const x = Math.round((c - camX) * u) + 0.5;
+    ectx.beginPath(); ectx.moveTo(x, cy); ectx.lineTo(x, gy); ectx.stroke();
+    if (c % 5 === 0 && c > 0) {
+      ectx.fillStyle = 'rgba(255,255,255,.75)'; ectx.font = '700 12px system-ui'; ectx.textAlign = 'left';
+      ectx.fillText(String(c), (c - camX) * u + 4, gy + 16);
+    }
+  }
+
+  for (const o of L.objs) {
+    const x = (o[1] - camX) * u;
+    if (x > eW + u || x < -u * 2) continue;
+    ectx.strokeStyle = '#1b1b3a'; ectx.lineWidth = 2;
+    if (o[0] === 's') {
+      ectx.fillStyle = '#ffffff';
+      ectx.beginPath(); ectx.moveTo(x, gy); ectx.lineTo(x + u / 2, gy - u); ectx.lineTo(x + u, gy); ectx.closePath(); ectx.fill(); ectx.stroke();
+    } else if (o[0] === 'c') {
+      ectx.fillStyle = '#ffffff';
+      ectx.beginPath(); ectx.moveTo(x, cy); ectx.lineTo(x + u / 2, cy + u); ectx.lineTo(x + u, cy); ectx.closePath(); ectx.fill(); ectx.stroke();
+    } else if (o[0] === 'b') {
+      const top = gy - o[2] * u;
+      ectx.fillStyle = '#263a8f'; ectx.strokeStyle = '#0c1640';
+      ectx.fillRect(x, top, u, o[2] * u); ectx.strokeRect(x, top, u, o[2] * u);
+    } else if (o[0] === 'p') {
+      const P = MODES[o[2]];
+      ectx.globalAlpha = 0.35; ectx.fillStyle = P.color; ectx.fillRect(x, cy, u * 0.4, gy - cy); ectx.globalAlpha = 1;
+      ectx.fillStyle = P.color; ectx.font = '900 ' + Math.floor(u * 0.4) + 'px system-ui'; ectx.textAlign = 'left';
+      ectx.fillText(P.label, x + 4, cy + u * 0.7);
+    }
+  }
+  // finish line
+  const fx = (L.len - camX) * u;
+  ectx.fillStyle = '#ffffff'; ectx.fillRect(fx, gy - eH * 0.35, 4, eH * 0.35);
+}
+
+// place or remove an object in column col, depending on the selected tool
+function placeAt(col) {
+  if (col < 1) return;
+  const objs = editLevel.objs, t = tool;
+  const at = function (type) { return objs.findIndex(function (o) { return o[0] === type && o[1] === col; }); };
+  if (t === 'x') {
+    for (let i = objs.length - 1; i >= 0; i--) if (objs[i][1] === col) objs.splice(i, 1);
+  } else if (t === 's' || t === 'c') {
+    const i = at(t);
+    if (i >= 0) objs.splice(i, 1); else objs.push([t, col]);
+  } else if (t[0] === 'b') {
+    const h = Number(t[1]);
+    const i = at('b');
+    const same = i >= 0 && objs[i][2] === h;
+    if (i >= 0) objs.splice(i, 1);
+    if (!same) objs.push(['b', col, h]);
+  } else if (t.indexOf('p:') === 0) {
+    const m = t.slice(2);
+    const i = at('p');
+    const same = i >= 0 && objs[i][2] === m;
+    if (i >= 0) objs.splice(i, 1);
+    if (!same) objs.push(['p', col, m]);
+  }
+  objs.sort(function (a, b) { return a[1] - b[1]; });
+  if (editLevel.len < col + 8) editLevel.len = col + 12;
+  updateEditorTop();
+  drawEditor();
+}
+
+ec.addEventListener('pointerdown', function (e) {
+  e.preventDefault();
+  ptrId = e.pointerId; ptrX0 = e.clientX; camStart = camX; dragging = false;
+  ec.setPointerCapture(ptrId);
+});
+ec.addEventListener('pointermove', function (e) {
+  if (ptrId === null) return;
+  const dx = e.clientX - ptrX0;
+  if (Math.abs(dx) > 8) dragging = true;
+  if (dragging) { camX = clampCam(camStart - dx / eu()); drawEditor(); }
+});
+function endPointer(e) {
+  if (ptrId === null) return;
+  if (!dragging && e.type === 'pointerup') {
+    const r = ec.getBoundingClientRect();
+    placeAt(Math.floor(camX + (e.clientX - r.left) / eu()));
+  }
+  ptrId = null; dragging = false;
+  drawEditor();
+}
+ec.addEventListener('pointerup', endPointer);
+ec.addEventListener('pointercancel', endPointer);
+
+function fixLength(L) {
+  let last = 0;
+  for (const o of L.objs) last = Math.max(last, o[1]);
+  if (L.len < last + 8) L.len = last + 8;
+  if (L.len < 20) L.len = 20;
+}
+function readEditorFields() {
+  editLevel.name = (document.getElementById('ename').value || '').trim().slice(0, 24) || 'My Level';
+  editLevel.start = document.getElementById('estart').value;
+}
+function showEditor() {
+  state = 'editor';
+  testLevel = null; stopTestBtn.style.display = 'none';
+  overEl.classList.remove('on');
+  document.getElementById('ename').value = editLevel.name;
+  document.getElementById('estart').value = editLevel.start || 'cube';
+  edEl.classList.add('on');
+  camX = -2;
+  buildPalette(); resizeEditor(); updateEditorTop(); drawEditor();
+}
+function openEditor(lev) {
+  if (lev) editLevel = JSON.parse(JSON.stringify(lev));
+  else {
+    const c = CUSTOM_COLORS[CUSTOM.length % CUSTOM_COLORS.length];
+    editLevel = { id: 'u' + Date.now(), name: 'My Level', len: 100, start: 'cube', top: c[0], bot: c[1], objs: [], custom: true };
+  }
+  showEditor();
+}
+function closeEditor() { edEl.classList.remove('on'); showMenu(); }
+function saveEditor() {
+  readEditorFields();
+  fixLength(editLevel);
+  const i = CUSTOM.findIndex(function (c) { return c.id === editLevel.id; });
+  if (i >= 0) CUSTOM[i] = editLevel; else CUSTOM.push(editLevel);
+  if (!saveCustom()) { alert('Could not save. Browser storage may be full or blocked.'); return; }
+  levelIdx = LEVELS.length + CUSTOM.findIndex(function (c) { return c.id === editLevel.id; });
+  closeEditor();
+}
+function startTest() {
+  readEditorFields();
+  fixLength(editLevel);
+  testLevel = JSON.parse(JSON.stringify(editLevel));
+  edEl.classList.remove('on');
+  stopTestBtn.style.display = 'block';
+  startLevel();
+}
+function leaveTest() {
+  testLevel = null; stopTestBtn.style.display = 'none';
+  overEl.classList.remove('on');
+  showEditor();
+}
+
+document.getElementById('ecancel').onclick = closeEditor;
+document.getElementById('esave').onclick = saveEditor;
+document.getElementById('etest').onclick = startTest;
+document.getElementById('elenm').onclick = function () { editLevel.len = Math.max(20, editLevel.len - 10); updateEditorTop(); drawEditor(); };
+document.getElementById('elenp').onclick = function () { editLevel.len = Math.min(400, editLevel.len + 10); updateEditorTop(); drawEditor(); };
+stopTestBtn.onclick = leaveTest;
+
+// ---- community levels (Supabase, shared hub project) ----
+const SB = (window.HUB_SUPA && window.HUB_SUPA.leaderboard) || null;
+function sbHeaders() { return { apikey: SB.key, Authorization: 'Bearer ' + SB.key, 'Content-Type': 'application/json' }; }
+async function sbFetch(path, opts) {
+  const o = Object.assign({ headers: sbHeaders() }, opts || {});
+  const r = await fetch(SB.url + '/rest/v1/' + path, o);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const t = await r.text();
+  return t ? JSON.parse(t) : null;
+}
+// never trust a downloaded level: keep only the fields and values the game understands
+function sanitizeLevel(raw, name, author) {
+  if (!raw || !Array.isArray(raw.objs)) return null;
+  const len = Number(raw.len);
+  if (!(len >= 20 && len <= 400)) return null;
+  const objs = [];
+  for (const o of raw.objs.slice(0, 600)) {
+    if (!Array.isArray(o)) continue;
+    const x = Math.floor(Number(o[1]));
+    if (!(x >= 1 && x <= len)) continue;
+    if (o[0] === 's' || o[0] === 'c') objs.push([o[0], x]);
+    else if (o[0] === 'b') { const h = Math.floor(Number(o[2])); if (h >= 1 && h <= 4) objs.push(['b', x, h]); }
+    else if (o[0] === 'p' && MODES[o[2]]) objs.push(['p', x, o[2]]);
+  }
+  objs.sort(function (a, b) { return a[1] - b[1]; });
+  const c = CUSTOM_COLORS[0];
+  return {
+    id: 'community', name: String(name || 'Community level').slice(0, 40),
+    author: String(author || 'Unknown').slice(0, 24),
+    len: len, start: MODES[raw.start] ? raw.start : 'cube',
+    top: c[0], bot: c[1], objs: objs, custom: true
+  };
+}
+async function openCommunity() {
+  const box = document.getElementById('communityBox'), list = document.getElementById('communityList');
+  box.classList.add('on');
+  list.textContent = 'Loading…';
+  try {
+    const rows = await sbFetch('gd_levels?select=id,name,author,plays&hidden=eq.false&order=created_at.desc&limit=40');
+    list.textContent = '';
+    if (!rows || !rows.length) { list.textContent = 'No community levels yet. Make one and press Publish in the editor.'; return; }
+    rows.forEach(function (row) {
+      const b = document.createElement('button');
+      b.className = 'opt';
+      b.textContent = row.name + ' · by ' + row.author + ' · ' + row.plays + ' plays';
+      b.onclick = function () { playCommunity(row.id); };
+      list.appendChild(b);
+    });
+  } catch (e) {
+    list.textContent = 'Could not load community levels. Check your connection and try again.';
+  }
+}
+async function playCommunity(id) {
+  try {
+    const rows = await sbFetch('gd_levels?select=name,author,level&id=eq.' + encodeURIComponent(id));
+    const row = rows && rows[0];
+    const lev = row && sanitizeLevel(row.level, row.name, row.author);
+    if (!lev) throw new Error('bad level');
+    communityId = id; communityLevel = lev;
+    document.getElementById('communityBox').classList.remove('on');
+    sbFetch('rpc/gd_play_level', { method: 'POST', body: JSON.stringify({ p_id: id }) }).catch(function () {});
+    startLevel();
+  } catch (e) {
+    alert('Could not load that level. Try again.');
+  }
+}
+document.getElementById('communityClose').onclick = function () { document.getElementById('communityBox').classList.remove('on'); };
+document.getElementById('reportBtn').onclick = async function () {
+  if (!communityId) return;
+  this.disabled = true;
+  try {
+    await sbFetch('rpc/gd_flag_level', { method: 'POST', body: JSON.stringify({ p_id: communityId }) });
+    this.textContent = 'Thanks, reported';
+  } catch (e) {
+    this.disabled = false;
+    alert('Could not send the report. Try again.');
+  }
+};
+document.getElementById('epub').onclick = async function () {
+  readEditorFields();
+  fixLength(editLevel);
+  if (!editLevel.objs.length) { alert('Add some obstacles before publishing.'); return; }
+  let author = (localStorage.getItem('geoMetryAuthor') || '').trim();
+  author = (prompt('Your name for the level credit (up to 24 letters):', author) || '').trim().slice(0, 24);
+  if (!author) return;
+  try { localStorage.setItem('geoMetryAuthor', author); } catch (e) {}
+  const payload = {
+    name: editLevel.name, author: author,
+    level: { len: editLevel.len, start: editLevel.start, objs: editLevel.objs }
+  };
+  const btn = this;
+  btn.disabled = true;
+  try {
+    await sbFetch('gd_levels', {
+      method: 'POST', body: JSON.stringify(payload),
+      headers: Object.assign(sbHeaders(), { Prefer: 'return=minimal' })
+    });
+    alert('Published! "' + payload.name + '" is now under 🌐 Community.');
+  } catch (e) {
+    alert('Could not publish. Check your connection and try again.');
+  }
+  btn.disabled = false;
+};
+
+showMenu();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

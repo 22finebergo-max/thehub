@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="../../js/sound-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2f7cff">
+<title>Ariyan Runner</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--blue:#2f7cff;--ink:#14213d;--muted:#6b7a99;--bg:#eef4ff}
+  html,body{height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+  canvas{position:fixed;inset:0;display:block;width:100vw;height:100vh}
+  #hud{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 10px;z-index:2;pointer-events:none}
+  .pill{background:rgba(255,255,255,.92);border-radius:999px;padding:8px 14px;font-weight:800;font-size:15px;box-shadow:0 4px 14px rgba(20,33,61,.15)}
+  #over{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(20,33,61,.35);z-index:3}
+  #over.on{display:flex}
+  .sheet{background:#fff;border-radius:28px;padding:26px 22px 22px;width:min(380px,100%);text-align:center;box-shadow:0 20px 50px rgba(20,33,61,.25)}
+  .icon{font-size:60px;margin-bottom:8px}
+  .sheet h1{font-size:30px;font-weight:900}
+  .sheet .sub{color:var(--muted);font-size:15px;line-height:1.45;margin:8px 0 18px}
+  #go{width:100%;font:inherit;font-weight:900;font-size:19px;border:0;border-radius:16px;padding:16px;color:#fff;background:var(--blue);box-shadow:0 10px 22px rgba(47,124,255,.35);cursor:pointer}
+  #tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;gap:6px;background:rgba(255,255,255,.95);border-radius:24px;padding:8px 10px;box-shadow:0 10px 30px rgba(20,33,61,.18);z-index:2}
+  #tabs a{display:flex;flex-direction:column;align-items:center;min-width:72px;padding:6px 10px;border-radius:16px;color:var(--muted);font-size:12px;font-weight:700;text-decoration:none}
+  #tabs a.active{color:var(--blue);background:#e8f1ff}
+</style>
+</head>
+<body>
+<div id="hud"><span class="pill" id="score">Score 0</span><span class="pill" id="lives"></span></div>
+<canvas id="c"></canvas>
+<div id="over" class="on">
+  <div class="sheet">
+    <div class="icon">🏃</div>
+    <h1 id="otitle">Ariyan Runner</h1>
+    <p class="sub" id="osub">Tap the left or right side of the screen to switch lanes. Dodge the Joes and red blocks, and grab the Amaans for bonus points.</p>
+    <button id="go">Run!</button>
+    <div id="lbBox" style="margin-top:10px;text-align:left"></div>
+    <button id="share" style="display:none;width:100%;font:inherit;font-weight:900;font-size:18px;border:0;border-radius:16px;padding:14px;color:#14213d;background:#ffd24a;cursor:pointer;margin-top:10px">📣 Beat my score</button>
+  </div>
+</div>
+<nav id="tabs">
+  <a href="#" class="active"><span>🏃</span>Play</a>
+  <a href="../../" id="hubLink"><span>🏠</span>Hub</a>
+</nav>
+<script src="../../js/share-score.js"></script>
+<script src="../../js/leaderboard-games.js"></script>
+<script>
+
+function recordRun(key, best, xp) {
+  try {
+    var n = function (k) { return Number(localStorage.getItem(k)) || 0; };
+    localStorage.setItem(key + 'Plays', n(key + 'Plays') + 1);
+    localStorage.setItem(key + 'XP', n(key + 'XP') + Math.max(0, Math.floor(xp)));
+    if (best > n(key + 'Best')) localStorage.setItem(key + 'Best', String(best));
+  } catch (e) {}
+}
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const overEl = document.getElementById('over'), goBtn = document.getElementById('go');
+const scoreEl = document.getElementById('score'), livesEl = document.getElementById('lives');
+if (location.hostname.endsWith('itch.io')) document.getElementById('hubLink').href = 'https://biggamehub.itch.io/';
+
+const FACE = {
+  ariyan: '../snariyan/ariyan.png', amaan: '../amaan/amaan.jpg', joe: '../wackjoe/joe.jpeg'
+};
+const imgs = {};
+for (const k in FACE) { imgs[k] = new Image(); imgs[k].src = FACE[k]; }
+
+let W, H, dpr = 1, state = 'menu', score = 0, lives = 3, coins = 0, dist = 0;
+let items = [], spawnT = 0, last = 0, lane = 1, px = 0;
+let best = 0;
+try { best = Number(localStorage.getItem('ariyanrunner-best')) || 0; } catch (e) {}
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize); resize();
+
+const laneX = () => [W * 0.25, W * 0.5, W * 0.75];
+const playerY = () => H - 140;
+const R = () => Math.min(W, H) * 0.09;
+
+function setHud() {
+  scoreEl.textContent = 'Score ' + score + ' · Best ' + best;
+  livesEl.textContent = lives > 0 ? '❤️'.repeat(lives) : '💀';
+}
+function reset() {
+  score = 0; lives = 3; coins = 0; dist = 0; items = []; spawnT = 0; lane = 1;
+  px = laneX()[1]; setHud();
+}
+function speed() { return Math.min(760, 320 + dist * 0.5); }
+
+function spawn() {
+  const r = Math.random();
+  const ln = Math.floor(Math.random() * 3);
+  let type = r < 0.22 ? 'coin' : (r < 0.6 ? 'joe' : 'block');
+  items.push({ type: type, lane: ln, y: -R() * 2 });
+  // sometimes add a second obstacle in another lane so it stays fair
+  if (type !== 'coin' && Math.random() < 0.35) {
+    const other = (ln + 1 + Math.floor(Math.random() * 2)) % 3;
+    items.push({ type: 'block', lane: other, y: -R() * 2 });
+  }
+}
+
+function endGame() {
+  state = 'over';
+  recordRun('ariyanRunner', score, Math.floor(score / 3));
+  HubBoard.submitAndShow('ariyan_runner', score, document.getElementById('lbBox'));
+  if (score > best) { best = score; try { localStorage.setItem('ariyanrunner-best', String(best)); } catch (e) {} }
+  setHud();
+  document.getElementById('otitle').textContent = 'Game over';
+  document.getElementById('osub').textContent = 'Score ' + score + ' · Coins ' + coins + ' · Best ' + best;
+  goBtn.textContent = 'Run again';
+  var sh = document.getElementById('share'); sh.style.display = 'block'; sh.onclick = function () { HubShare('Ariyan Runner', 'ran ' + score + ' points'); };
+  overEl.classList.add('on');
+}
+
+function update(dt) {
+  const L = laneX();
+  px += (L[lane] - px) * Math.min(1, dt * 14);
+  dist += speed() * dt * 0.1;
+  score = Math.floor(dist) + coins * 5;
+  spawnT -= dt;
+  if (spawnT <= 0) { spawn(); spawnT = Math.max(0.35, 0.9 - dist * 0.0004) * (0.7 + Math.random() * 0.6); }
+
+  const py = playerY(), rr = R();
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    it.y += speed() * dt;
+    if (it.lane === lane && Math.abs(it.y - py) < rr * 0.9) {
+      items.splice(i, 1);
+      if (it.type === 'coin') { coins++; }
+      else { lives--; if (lives <= 0) { setHud(); endGame(); return; } }
+      setHud();
+      continue;
+    }
+    if (it.y > H + rr * 2) items.splice(i, 1);
+  }
+}
+
+function drawFace(img, x, y, r, ringCol, fallback) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.closePath();
+  ctx.fillStyle = '#fff'; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, r - 4, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+  if (img && img.complete && img.naturalWidth) ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
+  else { ctx.fillStyle = fallback; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
+  ctx.restore();
+  ctx.lineWidth = 5; ctx.strokeStyle = ringCol;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+}
+
+function draw() {
+  // sky and road
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#7cc4ff'); g.addColorStop(1, '#2f7cff');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const L = laneX();
+  const roadL = W * 0.08, roadR = W * 0.92;
+  ctx.fillStyle = 'rgba(20,33,61,.35)';
+  ctx.beginPath(); ctx.roundRect(roadL, 0, roadR - roadL, H, 24); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.setLineDash([24, 22]); ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(W * 0.375, 0); ctx.lineTo(W * 0.375, H);
+  ctx.moveTo(W * 0.625, 0); ctx.lineTo(W * 0.625, H); ctx.stroke(); ctx.setLineDash([]);
+
+  const rr = R();
+  for (const it of items) {
+    const x = L[it.lane];
+    if (it.type === 'coin') {
+      drawFace(imgs.amaan, x, it.y, rr * 0.7, '#ffd24a', '#ffd24a');
+    } else if (it.type === 'joe') {
+      drawFace(imgs.joe, x, it.y, rr * 0.85, '#ff3d3d', '#ff3d3d');
+    } else {
+      ctx.fillStyle = '#ff5a5a'; ctx.strokeStyle = '#14213d'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.roundRect(x - rr, it.y - rr * 0.5, rr * 2, rr, 12); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff';
+      for (let s = -1; s <= 1; s++) ctx.fillRect(x + s * rr * 0.5 - 4, it.y - 6, 8, 12);
+    }
+  }
+  // runner
+  drawFace(imgs.ariyan, px, playerY(), rr, '#ffffff', '#36d1ff');
+}
+
+function frame(t) {
+  const dt = Math.min(0.05, (t - last) / 1000 || 0);
+  last = t;
+  if (state === 'play') update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+goBtn.onclick = function () {
+  document.getElementById('share').style.display = 'none';
+  document.getElementById('lbBox').innerHTML = '';
+  reset(); state = 'play'; overEl.classList.remove('on');
+  px = laneX()[lane];
+};
+
+function tapLane(x) {
+  if (state !== 'play') return;
+  if (x < W / 2) lane = Math.max(0, lane - 1); else lane = Math.min(2, lane + 1);
+}
+cv.addEventListener('pointerdown', function (e) { tapLane(e.clientX); });
+addEventListener('keydown', function (e) {
+  if (e.key === 'ArrowLeft') lane = Math.max(0, lane - 1);
+  if (e.key === 'ArrowRight') lane = Math.min(2, lane + 1);
+});
+
+setHud();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Game Hub</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b1226">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:#070b18;color:#eaf0ff;font-family:"Trebuchet MS",system-ui,sans-serif;display:flex;flex-direction:column}
+  .bar{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:10px 14px;
+    background:linear-gradient(180deg,#121c38,#0b1226);border-bottom:1px solid rgba(255,255,255,.12)}
+  .back{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:700;font-size:14px;
+    color:#07101f;background:linear-gradient(95deg,#36d1ff,#9ef0ff);padding:9px 16px;border-radius:999px}
+  .back:hover{filter:brightness(1.08)}
+  .title{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lvl{font-size:11px;font-weight:800;color:#07101f;background:#ffd24a;border-radius:999px;padding:3px 8px}
+  .spacer{margin-left:auto}
+  .ghost{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#dfe8ff;
+    font:inherit;font-size:13px;padding:8px 13px;border-radius:999px;cursor:pointer}
+  .ghost:hover{background:rgba(255,255,255,.16)}
+  .ghost.off{opacity:.45;text-decoration:line-through}
+  #frame{flex:1 1 auto;width:100%;border:0;display:block;background:#000}
+  @media(max-width:560px){.title{font-size:14px}.ghost{padding:8px 10px}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <a class='back' href='index.html'>← Hub</a>
+  <span class="title" id="t">Loading…</span>
+  <span class="lvl" id="lvl">Lv 1</span>
+  <span class="spacer"></span>
+  <button class="ghost" id="snd" title="Sound for every game">🔊</button>
+  <button class="ghost" id="hap" title="Vibration feedback">📳</button>
+  <button class="ghost" id="fs" title="Fullscreen">⛶</button>
+</div>
+<iframe id="frame" allow="fullscreen; autoplay; clipboard-write" allowfullscreen></iframe>
+
+<script src="js/hub-core.js"></script>
+<script>
+  var games = {
+    brawlkings: { src: 'games/brawlkings/index.html', name: '👑 Brawl Kings' },
+    flappy: { src: 'games/flappy/index.html', name: '🐤 Flappy Haider' },
+    amaan:  { src: 'games/amaan/index.html',  name: '👅 Amaan Clicker' },
+    christian: { src: 'games/christian/index.html', name: '🧱 Like a Christian' },
+    snariyan: { src: 'games/snariyan/index.html', name: '🐍 Snariyan' },
+    paccymatt: { src: 'games/paccymatt/index.html', name: '🟡 paccymatt' },
+    stackjosh: { src: 'games/stackjosh/index.html', name: '📚 Stack a Josh' },
+    angryhaider: { src: 'games/angryhaider/index.html', name: '💢 Angry Haider' },
+    kickaustin: { src: 'games/kickaustin/index.html', name: '🦶 Kick the Austin' },
+    connectsamuel: { src: 'games/connectsamuel/index.html', name: '🔴 Connect Samuel' },
+    wackjoe: { src: 'games/wackjoe/index.html', name: '🔨 Wack a Joe' },
+    haiderkart: { src: 'games/haiderkart/index.html', name: '🏎️ Haider Kart' },
+    amaantd: { src: 'games/amaantd/index.html', name: '🛡️ Amaan Tower Defence' },
+    kingstag: { src: 'games/kingstag/index.html', name: '👑 Kings Tag' },
+    smashyhaider: { src: 'games/smashyhaider/index.html', name: '🏙️ Smashy Haider' },
+    chesscrew: { src: 'games/chesscrew/index.html', name: '♟️ Chess Crew' },
+    clashroyal3d: { src: 'games/clashroyal3d/index.html', name: '👑 Clash Royal 3D' },
+    crossyhaider: { src: 'games/crossyhaider/index.html', name: '🐔 Crossy Haider' }
+  };
+  var key = new URLSearchParams(location.search).get('game');
+  if (!games[key]) key = 'brawlkings';
+  var g = games[key];
+
+  document.getElementById('t').textContent = g.name;
+  document.title = g.name + ' · The Game Hub';
+  var frame = document.getElementById('frame');
+  frame.src = g.src;
+  HubCore.markPlayed(key);
+
+  document.getElementById('fs').onclick = function () {
+    (frame.requestFullscreen || frame.webkitRequestFullscreen).call(frame);
+  };
+
+  function paintToggles() {
+    var s = document.getElementById('snd'), h = document.getElementById('hap');
+    s.classList.toggle('off', !HubCore.soundOn());
+    s.textContent = HubCore.soundOn() ? '🔊' : '🔇';
+    if (!HubCore.canVibrate()) { h.style.display = 'none'; return; }
+    h.classList.toggle('off', !HubCore.hapticsOn());
+    h.textContent = HubCore.hapticsOn() ? '📳' : '📴';
+  }
+  document.getElementById('snd').onclick = function () { HubCore.setSound(!HubCore.soundOn()); paintToggles(); };
+  document.getElementById('hap').onclick = function () { HubCore.setHaptics(!HubCore.hapticsOn()); paintToggles(); };
+  paintToggles();
+
+  function paintLevel() {
+    var p = HubCore.profile();
+    document.getElementById('lvl').textContent = 'Lv ' + p.level;
+    HubCore.updateBadge();
+  }
+  paintLevel();
+  setInterval(paintLevel, 10000);
+
+  /* Keyboard: if the game iframe has focus it gets keys directly. When it
+     does not (the player clicked the hub bar, or never tapped inside), the
+     keys land here instead — forward game keys into the iframe so Space,
+     arrows and WASD always work. Games listen for a {hubKey} message. */
+  var FORWARD = /^(Space|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Key[A-Z]|Digit[0-9])$/;
+  window.addEventListener('keydown', function (e) {
+    if (!FORWARD.test(e.code) || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target && /^(input|textarea|button|a)$/i.test(e.target.tagName)) return;
+    e.preventDefault();
+    try { frame.contentWindow.postMessage({ hubKey: e.code, key: e.key }, '*'); } catch (err) {}
+  });
+  window.addEventListener('keyup', function(e){if(FORWARD.test(e.code))try{frame.contentWindow.postMessage({hubKeyUp:e.code},location.origin)}catch(err){}});
+  window.addEventListener('blur',function(){try{frame.contentWindow.postMessage({hubResetKeys:true},location.origin)}catch(err){}});
+  /* tapping anywhere on the play page hands typing focus to the game */
+  window.addEventListener('pointerdown', function () {
+    try { frame.contentWindow.focus(); } catch (err) {}
+  });
+  frame.addEventListener('load', function () {
+    try { frame.contentWindow.focus(); } catch (err) {}
+  });
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="../../js/sound-guard.js"></script>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wack a Joe · The Game Hub</title>
+<meta name="description" content="Classic whack-a-mole with Joe. Catch the popping Joes and beat your best score.">
+<meta property="og:title" content="Wack a Joe · The Game Hub"><meta property="og:description" content="Joe is popping up! Play a fast-paced whack-a-mole round in The Game Hub."><meta property="og:type" content="website"><meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<p class="eyebrow">THE GAME HUB</p><h1>🔨 Wack a Joe</h1>
+<fieldset class="difficulty" id="difficulty"><legend>Difficulty</legend><label><input type="radio" name="difficulty" value="easy"> Easy</label><label><input type="radio" name="difficulty" value="medium" checked> Medium</label><label><input type="radio" name="difficulty" value="hard"> Hard</label></fieldset>
+<div class="hud"><div><span>SCORE</span><strong id="score">0</strong></div><div><span>TIME</span><strong id="time">30</strong></div><div><span>BEST</span><strong id="best">0</strong></div></div>
+<div class="field"><div class="board medium" id="board" aria-label="Twenty Joe holes"></div>
+<div class="overlay" id="overlay"><section class="dialog"><h2 id="heading">Ready, Joe?</h2><p id="result">30 seconds on the clock.</p><button class="action" id="start">Play now →</button></section></div></div>
+<div class="controls"><button class="icon-button" id="pause" aria-label="Pause game" title="Pause game" disabled>⏸</button><button class="icon-button" id="sound" aria-label="Turn sound off" title="Sound">🔊</button></div>
+<p class="status" id="status" aria-live="polite">Best score: <span id="footerBest">0</span></p>
+</main>
+<script src="../../js/hub-core.js"></script><script src="rules.js"></script><script src="game.js"></script>
+</body></html>

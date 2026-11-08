@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="../../js/sound-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Connect Samuel</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:linear-gradient(180deg,#0d1b3d,#1b2f6b);color:#fff;font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;gap:12px}
+h1{font-size:26px;letter-spacing:1px}
+#status{font-size:18px;font-weight:700;min-height:26px;display:flex;align-items:center;gap:8px}
+#status img{width:26px;height:26px;border-radius:50%;border:3px solid}
+#board{position:relative;background:#1565c0;border-radius:16px;padding:8px;box-shadow:0 14px 40px rgba(0,0,0,.5),inset 0 -6px 0 #0d47a1;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;width:min(94vw,64vh,520px)}
+.cell{aspect-ratio:1;border-radius:50%;background:#0b1a3a;box-shadow:inset 0 4px 6px rgba(0,0,0,.6);position:relative;overflow:visible;cursor:pointer}
+.disc{position:absolute;inset:0;border-radius:50%;background-size:cover;background-position:center;border:4px solid;animation:drop .35s cubic-bezier(.4,1.6,.6,1)}
+.disc.p1{border-color:#ff3d3d;box-shadow:0 0 0 2px #b71c1c}
+.disc.p2{border-color:#ffd600;box-shadow:0 0 0 2px #f9a825}
+.disc.p1::after,.disc.p2::after{content:"";position:absolute;inset:0;border-radius:50%;mix-blend-mode:multiply}
+.disc.p1::after{background:rgba(255,80,80,.45)}
+.disc.p2::after{background:rgba(255,220,0,.45)}
+.disc.win{animation:pulse .6s infinite alternate}
+@keyframes drop{from{transform:translateY(var(--from,-300px))}to{transform:none}}
+@keyframes pulse{to{transform:scale(1.12);filter:brightness(1.3)}}
+.btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+button{font:inherit;font-weight:800;font-size:15px;border:0;border-radius:12px;padding:10px 16px;background:#ff9e40;color:#fff;cursor:pointer;box-shadow:0 4px 0 #c76a10}
+button.alt{background:#3d5596;box-shadow:0 4px 0 #24366a}
+#menu{position:fixed;inset:0;background:radial-gradient(circle at 50% 25%,#1a2d6b,#080e23 75%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:5;padding:20px;text-align:center}
+#menu img{width:110px;height:110px;border-radius:50%;border:5px solid #ffd600;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#menu .col{display:flex;flex-direction:column;gap:10px;width:220px}
+#menu p{opacity:.8;font-size:14px;max-width:300px}
+#score{font-size:14px;opacity:.85}
+button.online{background:#1fa36b;box-shadow:0 4px 0 #0f6b44}
+button{transition:transform .1s,box-shadow .1s}
+button:active{transform:translateY(2px)}
+#onlineTag{display:none;font-size:12px;font-weight:800;letter-spacing:1px;padding:4px 10px;border-radius:10px;background:#1fa36b;box-shadow:0 3px 0 #0f6b44}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Connect Samuel</h1>
+  <div id="onlineTag" data-testid="connect-online-tag"></div>
+  <div id="status" data-testid="connect-status"></div>
+  <div id="board"></div>
+  <div id="score" data-testid="connect-score"></div>
+  <div class="btns"><button id="again" data-testid="connect-again-button">New game</button><button class="alt" id="toMenu" data-testid="connect-menu-button">Menu</button></div>
+</div>
+<div id="menu">
+  <img src="samuel.png" alt="Samuel">
+  <h1>Connect Samuel</h1>
+  <p>Drop Samuels into the board. Get four Samuels in a row — across, down or diagonal — to win!</p>
+  <div class="col">
+    <button data-m="easy">🤖 vs AI — Easy</button>
+    <button data-m="medium">🤖 vs AI — Medium</button>
+    <button data-m="hard">🤖 vs AI — Hard</button>
+    <button class="alt" data-m="2p">👥 2 Players</button>
+    <button class="online" id="bOnline" data-testid="connect-online-button">🌐 Online 1v1</button>
+  </div>
+</div>
+<script src="../../js/hub-online.js"></script>
+<script>
+(function(){
+var R=6,C=7,board,turn,over,mode='easy',busy=false;
+var boardEl=document.getElementById('board'),statusEl=document.getElementById('status'),scoreEl=document.getElementById('score');
+function ls(k){try{return +localStorage.getItem(k)||0}catch(e){return 0}}
+function ss(k,v){try{localStorage.setItem(k,String(v))}catch(e){}}
+try{var pr=JSON.parse(localStorage.getItem('hubProfile')||'{}');pr.last='connectsamuel';localStorage.setItem('hubProfile',JSON.stringify(pr))}catch(e){}
+var cells=[];
+for(var r=0;r<R;r++)for(var c=0;c<C;c++){var d=document.createElement('div');d.className='cell';d.dataset.c=c;d.setAttribute('data-testid','connect-cell-'+r+'-'+c);d.onclick=function(){play(+this.dataset.c,true)};boardEl.appendChild(d);cells.push(d)}
+var AC=null;function beep(f,t){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();var o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;o.type='triangle';g.gain.setValueAtTime(.12,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+(t||.15));o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+(t||.15))}catch(e){}}
+function names(){if(mode==='online'){var n=[ON.names[0],ON.names[1]];n[ON.myP-1]='You';return n}return mode==='2p'?['Player 1','Player 2']:['You','Samuel AI ('+mode+')']}
+function disc(p){return '<img src="samuel.png" style="border-color:'+(p===1?'#ff3d3d':'#ffd600')+'">'}
+function setStatus(t,p){statusEl.innerHTML=(p?disc(p):'')+'<span>'+t+'</span>'}
+function showScore(){if(mode==='online'){scoreEl.textContent='Online · You '+ON.w+' – '+ON.l+' '+ON.names[2-ON.myP]+(ON.d?' · Draws '+ON.d:'');return}if(mode==='2p'){scoreEl.textContent='Red '+ls('connectSamuel2pR')+' – '+ls('connectSamuel2pY')+' Yellow'}else{scoreEl.textContent='vs '+mode+' AI — Wins '+ls('connectSamuelWins_'+mode)+' · Losses '+ls('connectSamuelLoss_'+mode)}}
+function reset(first){board=[];for(var r=0;r<R;r++)board.push([0,0,0,0,0,0,0]);turn=first||1;over=false;busy=false;
+  cells.forEach(function(c){c.innerHTML=''});turnStatus();showScore();
+  document.getElementById('again').textContent=mode==='online'?'Rematch':'New game';
+  document.getElementById('onlineTag').style.display=mode==='online'?'block':'none'}
+function turnStatus(){var nm=names()[turn-1];
+  if(mode==='online')setStatus(turn===ON.myP?'Your turn':nm+' is thinking…',turn);
+  else setStatus(nm+(mode!=='2p'&&turn===2?' is thinking…':' — your turn'),turn)}
+function lowest(b,c){for(var r=R-1;r>=0;r--)if(!b[r][c])return r;return -1}
+function winLine(b,p){var D=[[0,1],[1,0],[1,1],[1,-1]];for(var r=0;r<R;r++)for(var c=0;c<C;c++)if(b[r][c]===p)for(var k=0;k<4;k++){var line=[[r,c]],ok=true;for(var i=1;i<4;i++){var rr=r+D[k][0]*i,cc=c+D[k][1]*i;if(rr<0||rr>=R||cc<0||cc>=C||b[rr][cc]!==p){ok=false;break}line.push([rr,cc])}if(ok)return line}return null}
+function full(b){return b[0].every(function(v){return v})}
+function play(c,human){
+  if(over||busy)return;
+  if(mode==='online'){if(human&&turn!==ON.myP)return;if(!human&&turn===ON.myP)return}
+  else if(human&&mode!=='2p'&&turn===2)return;
+  var r=lowest(board,c);if(r<0)return;
+  if(mode==='online'&&human&&ON.room)ON.room.send('move',{c:c,n:moveCount(),round:ON.round});
+  board[r][c]=turn;var el=document.createElement('div');el.className='disc p'+turn;el.style.backgroundImage='url(samuel.png)';
+  el.style.setProperty('--from',(-(r+1)*110)+'%');cells[r*C+c].appendChild(el);beep(turn===1?440:550);
+  var w=winLine(board,turn);
+  if(w){over=true;w.forEach(function(x){cells[x[0]*C+x[1]].firstChild.classList.add('win')});
+    var nm=names()[turn-1];setStatus(nm+(nm==='You'?' win! 🎉':' wins! 🎉'),turn);beep(660,.4);
+    if(mode==='online'){if(turn===ON.myP){ON.w++;ss('connectSamuelOnlineWins',ls('connectSamuelOnlineWins')+1);ss('connectSamuelXP',ls('connectSamuelXP')+40)}else ON.l++;matchOver()}
+    else if(mode==='2p')ss(turn===1?'connectSamuel2pR':'connectSamuel2pY',ls(turn===1?'connectSamuel2pR':'connectSamuel2pY')+1);
+    else if(turn===1){ss('connectSamuelWins_'+mode,ls('connectSamuelWins_'+mode)+1);ss('connectSamuelXP',ls('connectSamuelXP')+({easy:10,medium:25,hard:60})[mode])}
+    else ss('connectSamuelLoss_'+mode,ls('connectSamuelLoss_'+mode)+1);
+    showScore();return}
+  if(full(board)){over=true;setStatus("It's a draw! 🤝");if(mode==='online'){ON.d++;matchOver()}return}
+  turn=3-turn;turnStatus();
+  if(mode!=='2p'&&mode!=='online'&&turn===2){busy=true;setTimeout(function(){var m=aiMove();busy=false;play(m,false)},450)}
+}
+// ---------- AI ----------
+var ORDER=[3,2,4,1,5,0,6];
+function scoreWin(a,p){var s=0,o=3-p,cnt=0,emp=0,opp=0;for(var i=0;i<4;i++){if(a[i]===p)cnt++;else if(a[i]===0)emp++;else opp++}
+  if(cnt===4)s+=1000;else if(cnt===3&&emp===1)s+=6;else if(cnt===2&&emp===2)s+=2;if(opp===3&&emp===1)s-=8;return s}
+function evalB(b,p){var s=0;for(var r=0;r<R;r++)if(b[r][3]===p)s+=3;
+  for(var r=0;r<R;r++)for(var c=0;c<C;c++){if(c+3<C)s+=scoreWin([b[r][c],b[r][c+1],b[r][c+2],b[r][c+3]],p);
+    if(r+3<R)s+=scoreWin([b[r][c],b[r+1][c],b[r+2][c],b[r+3][c]],p);
+    if(r+3<R&&c+3<C)s+=scoreWin([b[r][c],b[r+1][c+1],b[r+2][c+2],b[r+3][c+3]],p);
+    if(r+3<R&&c-3>=0)s+=scoreWin([b[r][c],b[r+1][c-1],b[r+2][c-2],b[r+3][c-3]],p)}return s}
+function mm(b,depth,a,be,max){
+  if(winLine(b,2))return 100000+depth;if(winLine(b,1))return -100000-depth;
+  if(depth===0||full(b))return evalB(b,2)-evalB(b,1);
+  var best=max?-Infinity:Infinity;
+  for(var i=0;i<7;i++){var c=ORDER[i],r=lowest(b,c);if(r<0)continue;b[r][c]=max?2:1;var v=mm(b,depth-1,a,be,!max);b[r][c]=0;
+    if(max){if(v>best)best=v;if(best>a)a=best}else{if(v<best)best=v;if(best<be)be=best}if(a>=be)break}
+  return best}
+function valid(){return ORDER.filter(function(c){return lowest(board,c)>=0})}
+function aiMove(){var v=valid();
+  // always take an immediate win; block on medium/hard (and sometimes on easy)
+  for(var p of [2,1]){if(p===1&&mode==='easy'&&Math.random()<.6)continue;for(var c of v){var r=lowest(board,c);board[r][c]=p;var w=winLine(board,p);board[r][c]=0;if(w)return c}}
+  if(mode==='easy')return v[Math.random()*v.length|0];
+  var depth=mode==='medium'?3:7,best=-Infinity,bc=v[0];
+  if(mode==='medium'&&Math.random()<.15)return v[Math.random()*v.length|0];
+  for(var c of v){var r=lowest(board,c);board[r][c]=2;var s=mm(board,depth-1,-Infinity,Infinity,false);board[r][c]=0;if(s>best){best=s;bc=c}}
+  return bc}
+// ---------- menu ----------
+var menu=document.getElementById('menu');
+menu.querySelectorAll('button[data-m]').forEach(function(b){b.setAttribute('data-testid','connect-mode-'+b.dataset.m);b.onclick=function(){mode=b.dataset.m;menu.style.display='none';ss('connectSamuelPlays',ls('connectSamuelPlays')+1);reset()}});
+document.getElementById('again').onclick=function(){
+  if(mode==='online'){
+    if(!ON.room)return;
+    if(!over){setStatus('Finish this game first!',turn);setTimeout(turnStatus,1200);return}
+    if(ON.room.isHost)ON.room.startMatch();else{ON.room.send('rematch',{});setStatus('Asked for a rematch…')}
+    return}
+  ss('connectSamuelPlays',ls('connectSamuelPlays')+1);reset()};
+document.getElementById('toMenu').onclick=function(){
+  if(mode==='online'){var r=ON.room;offline();if(r&&window.HubOnline)HubOnline.leave()}
+  menu.style.display='flex'};
+
+// ---------- online 1v1 (room codes over Supabase Realtime) ----------
+var ON={room:null,myP:1,names:['',''],round:0,w:0,l:0,d:0,ids:[]};
+function moveCount(){var n=0;for(var r=0;r<R;r++)for(var c=0;c<C;c++)if(board[r][c])n++;return n}
+function matchOver(){showScore();if(ON.room)ON.room.endMatch();ss('connectSamuelPlays',ls('connectSamuelPlays')+1)}
+function offline(){ON.room=null;if(mode==='online')mode='easy'}
+function bindRoom(room){
+  if(room.__cs)return;room.__cs=true;
+  room.on('move',function(d){if(ON.room!==room||!d||d.round!==ON.round)return;
+    if(d.n!==moveCount()){return}
+    play(d.c,false)});
+  room.on('rematch',function(){if(room.isHost&&over)room.startMatch()});
+  room.on('left',function(p){if(ON.room!==room||ON.ids.indexOf(p.id)===-1)return;
+    over=true;setStatus(p.name+' left the room 👋');
+    if(room.isHost)setTimeout(function(){if(ON.room===room&&window.HubOnline)HubOnline.showRoom()},1500)});
+}
+function startOnline(room,data){
+  bindRoom(room);
+  if(ON.room!==room){ON.w=ON.l=ON.d=0}
+  ON.room=room;ON.round=data.round;ON.ids=data.ids;
+  ON.myP=data.ids[0]===room.me?1:2;
+  ON.names=['',''];ON.names[0]=data.names[data.ids[0]]||'Red';ON.names[1]=data.names[data.ids[1]]||'Yellow';
+  mode='online';menu.style.display='none';
+  document.getElementById('onlineTag').textContent='🌐 ROOM '+room.code+' · YOU ARE '+(ON.myP===1?'RED':'YELLOW');
+  reset(data.round%2===1?1:2);beep(520,.2)}
+document.getElementById('bOnline').onclick=function(){
+  if(!window.HubOnline){alert('Online play needs an internet connection.');return}
+  menu.style.display='none';
+  HubOnline.openLobby({game:'connectsamuel',title:'Connect Samuel',min:2,max:2,
+    theme:{bg:'rgba(8,14,35,.94)',panel:'#13224d',border:'#ffd600',title:'#ffd600',accent:'#ff9e40',shadow:'#c76a10',ring:'rgba(255,214,0,.35)',font:'"Trebuchet MS","Segoe UI",system-ui,sans-serif'},
+    onStart:startOnline,
+    onEnd:function(reason){var was=mode==='online';offline();if(was){reset();menu.style.display='none'}},
+    onClose:function(){menu.style.display='flex'}})};
+reset();
+})();
+</script>
+</body>
+</html>

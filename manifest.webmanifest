@@ -1,0 +1,74 @@
+{
+  "name": "The Game Hub",
+  "short_name": "Game Hub",
+  "description": "Fourteen games in one place, including Brawl Kings and Wack a Joe — sharing one profile, global leaderboards and share cards.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "fullscreen"],
+  "orientation": "any",
+  "background_color": "#070b18",
+  "theme_color": "#070b18",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Brawl Kings",
+      "short_name": "Brawl Kings",
+      "url": "./play.html?game=brawlkings",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Wack a Joe",
+      "short_name": "Wack Joe",
+      "url": "./play.html?game=wackjoe",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Flappy Haider",
+      "short_name": "Flappy",
+      "url": "./play.html?game=flappy",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Amaan Clicker",
+      "short_name": "Clicker",
+      "url": "./play.html?game=amaan",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Like a Christian",
+      "short_name": "Christian",
+      "url": "./play.html?game=christian",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Snariyan",
+      "short_name": "Snariyan",
+      "url": "./play.html?game=snariyan",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "paccymatt",
+      "short_name": "paccymatt",
+      "url": "./play.html?game=paccymatt",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Stack a Josh",
+      "short_name": "Stack",
+      "url": "./play.html?game=stackjosh",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Angry Haider",
+      "short_name": "Angry",
+      "url": "./play.html?game=angryhaider",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
