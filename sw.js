@@ -2,7 +2,7 @@
    Pre-caches the whole hub so every game works with no connection.
    Bump CACHE on every release (v1, v2, v3 …) so installed PWAs pick up
    the new files and the old cache is deleted on activate. */
-var CACHE = 'game-hub-v93';
+var CACHE = 'game-hub-v97';
 
 var SHELL = [
   './games/ariyanrunner/index.html',
@@ -24,6 +24,8 @@ var SHELL = [
   './games/football5v5/faces/ariyan.png',
   './games/football5v5/faces/bartu.jpg',
   './thumbs/football-5v5.jpg',
+  './js/account.js',
+  './js/supabase.bundle.js',
   './games/chesscrew/index.html',
   './games/clashroyal3d/index.html',
   './games/crossyhaider/index.html',

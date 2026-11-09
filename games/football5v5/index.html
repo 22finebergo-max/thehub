@@ -102,7 +102,7 @@ let CFG={diff:1,mins:2};
 
 /* ---------- state ---------- */
 const P=[];                                       // 10 players: team0 = 0..4, team1 = 5..9
-const ball={x:0,z:0,vx:0,vz:0,h:0,vh:0,holder:null};
+const ball={x:0,z:0,vx:0,vz:0,h:0,vh:0,noPick:0,holder:null};
 const G=14;                                       // gravity for lifted balls
 let ctrl=3, state='menu', score=[0,0], timeLeft=0, goalT=0, charge=0, shootHeld=false, AI_ONLY=false, passHeld=false, passT=0;
 const keys={};
@@ -277,7 +277,7 @@ function kick(p,dx,dz,speed,lift){
   ball.holder=null;
   ball.x=p.x+ux*1.0; ball.z=p.z+uz*1.0;
   ball.vx=ux*speed; ball.vz=uz*speed;
-  ball.vh=lift||0; ball.h=lift?.05:0;
+  ball.vh=lift||0; ball.h=lift?.05:0; ball.noPick=lift?.35:0; // a lob can't be grabbed off the foot
   p.cool=.45;
   beep(300,.05,.04);
 }
@@ -540,7 +540,8 @@ function step(dt){
     if(d<1.1&&d>1e-4){ const o=(1.1-d)/2, nx=dx/d, nz=dz/d; A.x-=nx*o; A.z-=nz*o; B.x+=nx*o; B.z+=nz*o; }
   }
   // pickup
-  if(!ball.holder && ball.h<=1.0){
+  ball.noPick=Math.max(0,ball.noPick-dt);
+  if(!ball.holder && ball.h<=1.0 && ball.noPick<=0){
     const spd=Math.hypot(ball.vx,ball.vz);
     let best=null,bd=1.15;
     for(const p of P){
@@ -613,7 +614,15 @@ function fitCamera(){
   camDist=clamp(30/(t*camera.aspect),26,60);
 }
 function updateCamera(dt){
-  const want=new THREE.Vector3(ball.x*.45,0,ball.z*.3);
+  // visible half-width on the ground at the camera's target distance
+  const halfW=camDist*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*camera.aspect;
+  // when the ball is near a goal, slide the view so that goal sits about two-thirds across the screen
+  const side=ball.x<0?-1:1;
+  const near=clamp((Math.abs(ball.x)-10)/12,0,1);
+  const goalView=side*LX-side*halfW*.35;
+  const normal=ball.x*.9;
+  const wantX=normal+(goalView-normal)*near;
+  const want=new THREE.Vector3(clamp(wantX,-LX-6,LX+6),0,ball.z*.5);
   camTarget.lerp(want,Math.min(1,dt*3));
   const d=camDist;
   camera.position.set(camTarget.x,d*.78,camTarget.z+d*.62);
